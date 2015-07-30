@@ -329,6 +329,8 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 			newSchem.setUsePhysics(schemSection.getBoolean("schematics." + key + ".usephysics",Settings.usePhysics));	    
 			// Paste Entities or not
 			newSchem.setPasteEntities(schemSection.getBoolean("schematics." + key + ".pasteentities",false));
+			// Paste air or not. Default is false - huge performance savings!
+			//newSchem.setPasteAir(schemSection.getBoolean("schematics." + key + ".pasteair",false));	    
 			// Visible in GUI or not
 			newSchem.setVisible(schemSection.getBoolean("schematics." + key + ".show",true));
 			// Partner schematic
@@ -667,7 +669,10 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 	    } else {
 		// Over world start
 		//plugin.getLogger().info("DEBUG: pasting");
+		long timer = System.nanoTime();
 		schematic.pasteSchematic(next, player);
+		double diff = (System.nanoTime() - timer)/1000000;
+		plugin.getLogger().info("DEBUG: nano time = " + diff + " ms");
 		//plugin.getLogger().info("DEBUG: pasted overworld");
 		if (Settings.createNether && Settings.newNether) {
 		    // Paste the other world schematic
@@ -709,11 +714,20 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 	if (schematic.isPlayerSpawn()) {
 	    // Set home and teleport
 	    plugin.getPlayers().setHomeLocation(playerUUID, schematic.getPlayerSpawn(next), 1);
-	    player.teleport(schematic.getPlayerSpawn(next));
-	} else {
-	    //plugin.getLogger().info("DEBUG: teleporting to home location");
-	    plugin.getGrid().homeTeleport(player);
 	}
+	plugin.getGrid().homeTeleport(player);
+	
+	// Delayed teleport so that the island pasting can be completed.
+	/*
+	plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+
+	    @Override
+	    public void run() {
+		// New island teleport
+		plugin.getGrid().homeTeleport(player);
+		
+	    }}, 40L);
+	*/
 	// Reset any inventory, etc. This is done AFTER the teleport because other plugins may switch out inventory based on world
 	plugin.resetPlayer(player);
 	// Reset money if required
@@ -745,8 +759,8 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 			range = Settings.islandDistance;
 		    }
 		}
-		if (range < 50) {
-		    range = 50;
+		if (range < 0) {
+		    range = 0;
 		}
 	    }
 	}
@@ -1333,6 +1347,7 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 	    } else if (split[0].equalsIgnoreCase("confirm")) {
 		// This is where the actual reset is done
 		if (confirm.containsKey(playerUUID) && confirm.get(playerUUID)) {
+		    confirm.remove(playerUUID);
 		    // Actually RESET the island
 		    player.sendMessage(ChatColor.YELLOW + plugin.myLocale(player.getUniqueId()).islandresetPleaseWait);
 		    if (plugin.getPlayers().getResetsLeft(playerUUID) == 0) {
@@ -2694,15 +2709,17 @@ public class IslandCmd implements CommandExecutor, TabCompleter {
 	// Remove any warps
 	plugin.getWarpSignsListener().removeWarp(player.getUniqueId());
 	// Delete the old island, if it exists
-	// Remove any coops
-	CoopPlay.getInstance().clearAllIslandCoops(oldIsland.getCenter());
-	plugin.getGrid().removePlayersFromIsland(oldIsland);
-	new DeleteIslandChunk(plugin, oldIsland);
+	if (oldIsland != null) {
+	    // Remove any coops
+	    CoopPlay.getInstance().clearAllIslandCoops(oldIsland.getCenter());
+	    plugin.getGrid().removePlayersFromIsland(oldIsland, player.getUniqueId());
+	    new DeleteIslandChunk(plugin, oldIsland);
+	    // Fire event
+	    final IslandResetEvent event = new IslandResetEvent(player, oldIsland.getCenter());
+	    plugin.getServer().getPluginManager().callEvent(event);
+	}
 	// Run any commands that need to be run at reset
 	runCommands(Settings.resetCommands, player.getUniqueId());
-	// Fire event
-	final IslandResetEvent event = new IslandResetEvent(player, oldIsland.getCenter());
-	plugin.getServer().getPluginManager().callEvent(event);
     }
 
     /**
