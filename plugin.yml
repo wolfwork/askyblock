@@ -4,7 +4,7 @@ version: ${version}
 description: A SkyBlock Plugin
 author: Tastybento
 depend: [Vault]
-softdepend: [WorldEdit]
+softdepend: [Herochat]
 load: startup
 loadbefore: [Multiverse-Core]
 commands:
@@ -86,12 +86,9 @@ permissions:
           askyblock.team.join:
             description: Let a player join another player's team
             default: true
-          askyblock.team.vip:
-            description: Allows a bigger team size
-            default: false
-          askyblock.team.vip2:
-            description: Allows a bigger team size
-            default: false
+          askyblock.team.chat:
+            description: Allow player to use team chat
+            default: true
       askyblock.coop:
         description: Allows player to use the coop command
         default: false    
@@ -114,6 +111,9 @@ permissions:
           askyblock.mod.noburn:
             description: Gives mod immunity to acid
             default: false
+          askyblock.mod.resethome:
+            description: Allows setting or reseting of a player's home position
+            default: op
           askyblock.mod.clearreset:
             description: Allow clearing of island reset limit
             default: false
@@ -132,6 +132,18 @@ permissions:
           askyblock.mod.topbreeders:
             description: Lists most populated islands current loaded
             default: op
+          askyblock.mod.lock:
+            description: Locks or unlocks an island
+            default: op
+          askyblock.mod.bypasslock:
+            description: Bypasses an island lock
+            default: op
+          askyblock.mod.signadmin:
+            description: Enables warp sign admin commands
+            default: op
+          askyblock.mod.teamchatspy:
+            description: Spy on team chats
+            default: false
       askyblock.admin.*:
         children:
           askyblock.admin.reload:

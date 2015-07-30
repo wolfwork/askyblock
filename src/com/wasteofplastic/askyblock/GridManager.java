@@ -7,7 +7,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -23,10 +22,12 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Boat;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.MaterialData;
+import org.bukkit.material.SimpleAttachableMaterialData;
+import org.bukkit.material.TrapDoor;
 import org.bukkit.util.Vector;
 
 import com.wasteofplastic.askyblock.util.Util;
@@ -40,7 +41,7 @@ import com.wasteofplastic.askyblock.util.Util;
  * @author tastybento
  */
 public class GridManager {
-    private ASkyBlock plugin = ASkyBlock.getPlugin();
+    private ASkyBlock plugin;
     // 2D islandGrid of islands, x,z
     private TreeMap<Integer, TreeMap<Integer, Island>> islandGrid = new TreeMap<Integer, TreeMap<Integer, Island>>();
     // private TreeMap<Integer,TreeMap<Integer,PlayerIsland>> protectionGrid = new
@@ -186,73 +187,79 @@ public class GridManager {
 			    } else {
 				// Location exists
 				Location islandLoc = Util.getLocationString(islandLocation);
-				// Check to see if this island is already loaded
-				Island island = getIslandAt(islandLoc);
-				if (island != null) {
-				    // PlayerIsland exists, compare creation dates
-				    plugin.getLogger().severe("Problem with " + fileName);
-				    plugin.getLogger().severe("Owner :" + playerFile.getString("playerName", "Unknown"));
-				    plugin.getLogger().severe("This island location already exists and is already imported");
-				    if (island.getUpdatedDate() > f.lastModified()) {
-					plugin.getLogger().severe("Previous file is more recent so keeping it.");
-					// Original file is more recent
-					// Move to quarantine
-					if (!quarantineFolder.exists()) {
-					    quarantineFolder.mkdir();
-					}
-					plugin.getLogger().severe(
-						"Moving " + (playerFile.getString("playerName", "Unknown")) + "'s file (" + f.getName() + ") to "
-							+ quarantineFolder.getName());
-					File rename = new File(quarantineFolder, f.getName());
-					f.renameTo(rename);
-				    } else {
-					// New file is more recent
-					plugin.getLogger().severe(playerFile.getString("playerName", "Unknown") + "'s file is more recent");
-					File oldFile = new File(playerFolder, island.getOwner().toString() + ".yml");
-					File rename = new File(quarantineFolder, oldFile.getName());
-					// Move to quarantine
-					if (!quarantineFolder.exists()) {
-					    quarantineFolder.mkdir();
-					}
-					plugin.getLogger().severe("Moving previous file (" + oldFile.getName() + ") to " + quarantineFolder.getName());
-					oldFile.renameTo(rename);
-					deleteIsland(islandLoc);
-					island = null;
-				    }
-				}
-				if (island == null) {
-				    if (!onGrid(islandLoc)) {
+				if (islandLoc != null) {
+				    // Check to see if this island is already loaded
+				    Island island = getIslandAt(islandLoc);
+				    if (island != null) {
+					// PlayerIsland exists, compare creation dates
 					plugin.getLogger().severe("Problem with " + fileName);
 					plugin.getLogger().severe("Owner :" + playerFile.getString("playerName", "Unknown"));
-					plugin.getLogger().severe("Island is not on grid lines! " + islandLoc);
+					plugin.getLogger().severe("This island location already exists and is already imported");
+					if (island.getUpdatedDate() > f.lastModified()) {
+					    plugin.getLogger().severe("Previous file is more recent so keeping it.");
+					    // Original file is more recent
+					    // Move to quarantine
+					    if (!quarantineFolder.exists()) {
+						quarantineFolder.mkdir();
+					    }
+					    plugin.getLogger().severe(
+						    "Moving " + (playerFile.getString("playerName", "Unknown")) + "'s file (" + f.getName() + ") to "
+							    + quarantineFolder.getName());
+					    File rename = new File(quarantineFolder, f.getName());
+					    f.renameTo(rename);
+					} else {
+					    // New file is more recent
+					    plugin.getLogger().severe(playerFile.getString("playerName", "Unknown") + "'s file is more recent");
+					    File oldFile = new File(playerFolder, island.getOwner().toString() + ".yml");
+					    File rename = new File(quarantineFolder, oldFile.getName());
+					    // Move to quarantine
+					    if (!quarantineFolder.exists()) {
+						quarantineFolder.mkdir();
+					    }
+					    plugin.getLogger().severe("Moving previous file (" + oldFile.getName() + ") to " + quarantineFolder.getName());
+					    oldFile.renameTo(rename);
+					    deleteIsland(islandLoc);
+					    island = null;
+					}
 				    }
-				    String ownerString = fileName.substring(0, fileName.length() - 4);
-				    // Add the island
-				    UUID owner = UUID.fromString(ownerString);
-				    Island newIsland = addIsland(islandLoc.getBlockX(), islandLoc.getBlockZ(), owner);
-				    ownershipMap.put(owner, newIsland);
-				    // Grab when this was last updated
-				    newIsland.setUpdatedDate(f.lastModified());
+				    if (island == null) {
+					if (!onGrid(islandLoc)) {
+					    plugin.getLogger().severe("Problem with " + fileName);
+					    plugin.getLogger().severe("Owner :" + playerFile.getString("playerName", "Unknown"));
+					    plugin.getLogger().severe("Island is not on grid lines! " + islandLoc);
+					}
+					String ownerString = fileName.substring(0, fileName.length() - 4);
+					// Add the island
+					UUID owner = UUID.fromString(ownerString);
+					Island newIsland = addIsland(islandLoc.getBlockX(), islandLoc.getBlockZ(), owner);
+					ownershipMap.put(owner, newIsland);
+					// Grab when this was last updated
+					newIsland.setUpdatedDate(f.lastModified());
 
-				    if ((count) % 1000 == 0) {
-					plugin.getLogger().info("Converted " + count + " islands");
-				    }
-				    count++;
-				    // plugin.getLogger().info("Converted island at "
-				    // + islandLoc);
-				    // Top ten
+					if ((count) % 1000 == 0) {
+					    plugin.getLogger().info("Converted " + count + " islands");
+					}
+					count++;
+					// plugin.getLogger().info("Converted island at "
+					// + islandLoc);
+					// Top ten
 
-				    int islandLevel = playerFile.getInt("islandLevel", 0);
-				    String teamLeaderUUID = playerFile.getString("teamLeader", "");
-				    if (islandLevel > 0) {
-					if (!playerFile.getBoolean("hasTeam")) {
-					    TopTen.topTenAddEntry(owner, islandLevel);
-					} else if (!teamLeaderUUID.isEmpty()) {
-					    if (teamLeaderUUID.equals(ownerString)) {
+					int islandLevel = playerFile.getInt("islandLevel", 0);
+					String teamLeaderUUID = playerFile.getString("teamLeader", "");
+					if (islandLevel > 0) {
+					    if (!playerFile.getBoolean("hasTeam")) {
 						TopTen.topTenAddEntry(owner, islandLevel);
+					    } else if (!teamLeaderUUID.isEmpty()) {
+						if (teamLeaderUUID.equals(ownerString)) {
+						    TopTen.topTenAddEntry(owner, islandLevel);
+						}
 					    }
 					}
 				    }
+				} else {
+				    plugin.getLogger().severe("Problem with " + fileName);
+				    plugin.getLogger().severe("Owner :" + playerFile.getString("playerName", "Unknown"));
+				    plugin.getLogger().severe("The world for this file does not exist!");
 				}
 			    }
 			} else {
@@ -344,6 +351,9 @@ public class GridManager {
      * @return PlayerIsland object
      */
     public Island getIslandAt(Location location) {
+	if (location == null) {
+	    return null;
+	}
 	// Check if it is spawn
 	if (spawn != null && spawn.onIsland(location)) {
 	    return spawn;
@@ -440,7 +450,7 @@ public class GridManager {
 	}
 	// plugin.getLogger().info("DEBUG: adding island to grid at " + x + ", "
 	// + z + " for " + owner.toString());
-	Island newIsland = new Island(x, z, owner);
+	Island newIsland = new Island(plugin, x, z, owner);
 	// if (newIsland != null) {
 	// plugin.getLogger().info("DEBUG: new island is good");
 	// }
@@ -455,7 +465,7 @@ public class GridManager {
      */
     public Island addIsland(String islandSerialized) {
 	// plugin.getLogger().info("DEBUG: adding island " + islandSerialized);
-	Island newIsland = new Island(islandSerialized);
+	Island newIsland = new Island(plugin, islandSerialized);
 	addToGrids(newIsland);
 	return newIsland;
     }
@@ -776,8 +786,22 @@ public class GridManager {
 		return false;
 	    }
 	}
+	MaterialData md = ground.getState().getData();
+	if (md instanceof SimpleAttachableMaterialData) {
+	    //Bukkit.getLogger().info("DEBUG: trapdoor/button/tripwire hook etc.");
+	    if (md instanceof TrapDoor) {
+		TrapDoor trapDoor = (TrapDoor)md;
+		if (trapDoor.isOpen()) {
+		    //Bukkit.getLogger().info("DEBUG: trapdoor open");
+		    return false;
+		}
+	    } else {
+		return false;
+	    }
+	    //Bukkit.getLogger().info("DEBUG: trapdoor closed");
+	}
 	if (ground.getType().equals(Material.CACTUS) || ground.getType().equals(Material.BOAT) || ground.getType().equals(Material.FENCE)
-		|| ground.getType().equals(Material.NETHER_FENCE)) {
+		|| ground.getType().equals(Material.NETHER_FENCE) || ground.getType().equals(Material.SIGN_POST) || ground.getType().equals(Material.WALL_SIGN)) {
 	    // Bukkit.getLogger().info("DEBUG: cactus");
 	    return false;
 	}
@@ -786,52 +810,11 @@ public class GridManager {
 	// check
 	// a few other items
 	// isSolid thinks that PLATEs and SIGNS are solid, but they are not
-	if (space1.getType().isSolid()) {
-	    //Bukkit.getLogger().info("DEBUG: space 1 is solid");
-	    // Do a few other checks
-	    if (!(space1.getType().equals(Material.SIGN_POST)) && !(space1.getType().equals(Material.WALL_SIGN))) {
-		// Bukkit.getLogger().info("DEBUG: space 1 is a sign post or wall sign");
-		return false;
-	    }
-	    /*
-	     * switch (space1.getType()) {
-	     * case ACACIA_STAIRS:
-	     * case BIRCH_WOOD_STAIRS:
-	     * case BRICK_STAIRS:
-	     * case COBBLESTONE_STAIRS:
-	     * case DARK_OAK_STAIRS:
-	     * case IRON_PLATE:
-	     * case JUNGLE_WOOD_STAIRS:
-	     * case NETHER_BRICK_STAIRS:
-	     * case PORTAL:
-	     * case QUARTZ_STAIRS:
-	     * case RED_SANDSTONE_STAIRS:
-	     * case SANDSTONE_STAIRS:
-	     * case SIGN_POST:
-	     * case SMOOTH_STAIRS:
-	     * case SPRUCE_WOOD_STAIRS:
-	     * case STEP:
-	     * case STONE_PLATE:
-	     * case STONE_SLAB2:
-	     * case WOOD_DOUBLE_STEP:
-	     * case WOOD_PLATE:
-	     * case WOOD_STAIRS:
-	     * case WOOD_STEP:
-	     * Bukkit.getLogger().info("DEBUG: not solid");
-	     * break;
-	     * default:
-	     * Bukkit.getLogger().info("DEBUG: solid");
-	     * return false;
-	     * }
-	     */
+	if (space1.getType().isSolid() && !space1.getType().equals(Material.SIGN_POST) && !space1.getType().equals(Material.WALL_SIGN)) {
+	    return false;
 	}
-	if (space2.getType().isSolid()) {
-	    //Bukkit.getLogger().info("DEBUG: space 2 is solid");
-	    // Do a few other checks
-	    if (!(space2.getType().equals(Material.SIGN_POST)) && !(space2.getType().equals(Material.WALL_SIGN))) {
-		// Bukkit.getLogger().info("DEBUG: space 2 is a sign post or wall sign");
-		return false;
-	    }
+	if (space2.getType().isSolid()&& !space2.getType().equals(Material.SIGN_POST) && !space2.getType().equals(Material.WALL_SIGN)) {
+	    return false;
 	}
 	// Safe
 	//Bukkit.getLogger().info("DEBUG: safe!");
@@ -844,7 +827,7 @@ public class GridManager {
      * 
      * @param p UUID of player
      * @param number - starting home location e.g., 1
-     * @return Location of a safe teleport spot or null if one cannot be fond
+     * @return Location of a safe teleport spot or null if one cannot be found
      */
     public Location getSafeHomeLocation(final UUID p, int number) {
 	// Try the numbered home location first
@@ -873,7 +856,7 @@ public class GridManager {
 	    }
 	}
 
-	// getLogger().info("DEBUG: Home location either isn't safe, or does not exist so try the island");
+	//plugin.getLogger().info("DEBUG: Home location either isn't safe, or does not exist so try the island");
 	// Home location either isn't safe, or does not exist so try the island
 	// location
 	if (plugin.getPlayers().inTeam(p)) {
@@ -927,13 +910,9 @@ public class GridManager {
 		return n;
 	    }
 	}
-	// Try a full protected area scan (-1 = full area scan)
-	l = bigScan(l, -1);
-	// Save if it is successful
-	if (l != null) {
-	    plugin.getPlayers().setHomeLocation(p, l, number);
-	}
-	return l;
+	//plugin.getLogger().info("DEBUG: unsuccessful");
+	// Unsuccessful
+	return null;
     }
 
     /**
@@ -1013,52 +992,11 @@ public class GridManager {
 		maxYradius++;
 	    }
 	    //plugin.getLogger().info("DEBUG: Radii " + minXradius + "," + minYradius + "," + minZradius + 
-		//    "," + maxXradius + "," + maxYradius + "," + maxZradius);
+	    //    "," + maxXradius + "," + maxYradius + "," + maxZradius);
 	} while (minXradius < i || maxXradius < i || minZradius < i || maxZradius < i || minYradius < depth 
 		|| maxYradius < height);
 	// Nothing worked
 	return null;
-    }
-
-    /**
-     * Teleport player to a home location. If one cannot be found a search is done to
-     * find a safe place.
-     * @param player
-     * @param number - home location to do to
-     * @return true if successful, false if not
-     */
-    public boolean homeTeleport(final Player player, int number) {
-	Location home = null;
-	home = getSafeHomeLocation(player.getUniqueId(), number);
-	// Check if the player is a passenger in a boat
-	if (player.isInsideVehicle()) {
-	    Entity boat = player.getVehicle();
-	    if (boat instanceof Boat) {
-		player.leaveVehicle();
-		// Remove the boat so they don't lie around everywhere
-		boat.remove();
-		player.getInventory().addItem(new ItemStack(Material.BOAT, 1));
-		player.updateInventory();
-	    }
-	}
-	if (home == null) {
-	    // The home is not safe
-	    if (!player.performCommand(Settings.SPAWNCOMMAND)) {
-		player.teleport(player.getWorld().getSpawnLocation());
-	    }
-	    player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).warpserrorNotSafe);
-	    return true;
-	}
-	//plugin.getLogger().info("DEBUG: home loc = " + home);
-	player.teleport(home);
-	//player.sendBlockChange(home, Material.GLOWSTONE, (byte)0);
-	if (number ==1 ) {
-	    player.sendMessage(ChatColor.GREEN + plugin.myLocale(player.getUniqueId()).islandteleport);
-	} else {
-	    player.sendMessage(ChatColor.GREEN + plugin.myLocale(player.getUniqueId()).islandteleport + " #" + number);
-	}
-	return true;
-
     }
 
     /**
@@ -1071,6 +1009,46 @@ public class GridManager {
     public boolean homeTeleport(final Player player) {
 	return homeTeleport(player, 1);
     }
+    /**
+     * Teleport player to a home location. If one cannot be found a search is done to
+     * find a safe place.
+     * @param player
+     * @param number - home location to do to
+     * @return true if successful, false if not
+     */
+    public boolean homeTeleport(final Player player, int number) {
+	Location home = null;
+	//plugin.getLogger().info("home teleport called for #" + number);
+	home = getSafeHomeLocation(player.getUniqueId(), number);
+	//plugin.getLogger().info("home get safe loc = " + home);
+	// Check if the player is a passenger in a boat
+	if (player.isInsideVehicle()) {
+	    Entity boat = player.getVehicle();
+	    if (boat instanceof Boat) {
+		player.leaveVehicle();
+		// Remove the boat so they don't lie around everywhere
+		boat.remove();
+		player.getInventory().addItem(new ItemStack(Material.BOAT, 1));
+		player.updateInventory();
+	    }
+	}
+	if (home == null) {
+	    //plugin.getLogger().info("Fixing home location using safe spot teleport");
+	    // Try to fix this teleport location and teleport the player if possible
+	    new SafeSpotTeleport(plugin, player, plugin.getPlayers().getHomeLocation(player.getUniqueId(), number), number);
+	    return true;
+	}
+	//plugin.getLogger().info("DEBUG: home loc = " + home + " teleporting");
+	player.teleport(home);
+	//player.sendBlockChange(home, Material.GLOWSTONE, (byte)0);
+	if (number ==1 ) {
+	    player.sendMessage(ChatColor.GREEN + plugin.myLocale(player.getUniqueId()).islandteleport);
+	} else {
+	    player.sendMessage(ChatColor.GREEN + plugin.myLocale(player.getUniqueId()).islandteleport + " #" + number);
+	}
+	return true;
+
+    }
 
     /**
      * Sets the numbered home location based on where the player is now
@@ -1078,13 +1056,13 @@ public class GridManager {
      * @param number
      */
     public void homeSet(Player player, int number) {
-	// Check if player is in overworld
-	if (!player.getWorld().equals(ASkyBlock.getIslandWorld())) {
+	// Check if player is in their home world
+	if (!player.getWorld().equals(plugin.getGrid().getIsland(player.getUniqueId()).getCenter().getWorld())) {
 	    player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).setHomeerrorNotOnIsland);
 	    return; 
 	}
-	// Check if player is on island
-	if (!plugin.getGrid().playerIsOnIsland(player)) {
+	// Check if player is on island, ignore coops
+	if (!plugin.getGrid().playerIsOnIsland(player, false)) {
 	    player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).setHomeerrorNotOnIsland);
 	    return;
 	}
@@ -1195,11 +1173,32 @@ public class GridManager {
      * coop island
      * 
      * @param player
-     *            - the player who is being checked
-     * @return - true if they are on an island they have rights to be on,
-     *         otherwise false
+     * @return true if on valid island, false if not
      */
     public boolean playerIsOnIsland(final Player player) {
+	return playerIsOnIsland(player, true);
+    }
+
+    /**
+     * Checks if an online player is on their island, on a team island or on a
+     * coop island
+     * @param player
+     * @param coop - if true, coop islands are included
+     * @return true if on valid island, false if not
+     */
+    public boolean playerIsOnIsland(final Player player, boolean coop) {
+	return locationIsAtHome(player, coop, player.getLocation());
+    }
+    
+    
+    /**
+     * Checks if a location is within the home boundaries of a player. If coop is true, this check includes coop players.
+     * @param player
+     * @param coop
+     * @param loc
+     * @return true if the location is within home boundaries
+     */
+    public boolean locationIsAtHome(final Player player, boolean coop, Location loc) {
 	// Make a list of test locations and test them
 	Set<Location> islandTestLocations = new HashSet<Location>();
 	if (plugin.getPlayers().hasIsland(player.getUniqueId())) {
@@ -1215,14 +1214,17 @@ public class GridManager {
 	    }
 	}
 	// Check coop locations
-	islandTestLocations.addAll(CoopPlay.getInstance().getCoopIslands(player));
+	if (coop) {
+	    islandTestLocations.addAll(CoopPlay.getInstance().getCoopIslands(player));
+	}
 	if (islandTestLocations.isEmpty()) {
 	    return false;
 	}
 	// Run through all the locations
 	for (Location islandTestLocation : islandTestLocations) {
 	    // Must be in the same world as the locations being checked
-	    if (islandTestLocation != null && islandTestLocation.getWorld().equals(player.getWorld())) {
+	    // Note that getWorld can return null if a world has been deleted on the server
+	    if (islandTestLocation != null && islandTestLocation.getWorld() != null && islandTestLocation.getWorld().equals(loc.getWorld())) {
 		int protectionRange = Settings.island_protectionRange;
 		if (getIslandAt(islandTestLocation) != null) {
 		    // Get the protection range for this location if possible
@@ -1232,10 +1234,10 @@ public class GridManager {
 			protectionRange = island.getProtectionSize();
 		    }
 		}
-		if (player.getLocation().getX() > islandTestLocation.getX() - protectionRange / 2
-			&& player.getLocation().getX() < islandTestLocation.getX() + protectionRange / 2
-			&& player.getLocation().getZ() > islandTestLocation.getZ() - protectionRange / 2
-			&& player.getLocation().getZ() < islandTestLocation.getZ() + protectionRange / 2) {
+		if (loc.getX() > islandTestLocation.getX() - protectionRange / 2
+			&& loc.getX() < islandTestLocation.getX() + protectionRange / 2
+			&& loc.getZ() > islandTestLocation.getZ() - protectionRange / 2
+			&& loc.getZ() < islandTestLocation.getZ() + protectionRange / 2) {
 		    return true;
 		}
 	    }
@@ -1345,9 +1347,11 @@ public class GridManager {
 	for (int x = -1; x <= 1; x++) {
 	    for (int z = -1; z <= 1; z++) {
 		final Chunk c = l.getWorld().getChunkAt(new Location(l.getWorld(), px + x * 16, py, pz + z * 16));
-		for (final Entity e : c.getEntities()) {
-		    if (e instanceof Monster) {
-			e.remove();
+		if (c.isLoaded()) {
+		    for (final Entity e : c.getEntities()) {
+			if (e instanceof Monster && !Settings.mobWhiteList.contains(e.getType())) {
+			    e.remove();
+			}
 		    }
 		}
 	    }
@@ -1355,54 +1359,32 @@ public class GridManager {
     }
 
     /**
-     * This removes mobs from an island
-     * 
-     * @param loc
-     *            - a Location
+     * This removes players from an island overworld and nether - used when reseting or deleting an island
+     * Mobs are killed when the chunks are refreshed.
+     * @param island to remove players from
      */
-    public void removeMobsFromIsland(final Location loc) {
-	// getLogger().info("DEBUG: removeIsland");
-	if (loc != null) {
-	    // Place a temporary entity
-	    // final World world = getIslandWorld();
-	    // Check to see if this world exists or not
-	    if (loc.getWorld() == null) {
-		return;
-	    }
-	    Entity snowBall = loc.getWorld().spawnEntity(loc, EntityType.SNOWBALL);
-	    // Remove any mobs if they just so happen to be around in the
-	    // vicinity
-	    final Iterator<Entity> ents = snowBall.getNearbyEntities((Settings.island_protectionRange / 2.0), 110.0D, (Settings.island_protectionRange / 2.0))
-		    .iterator();
-	    while (ents.hasNext()) {
-		final Entity tempent = ents.next();
-		// Remove anything except for a players
-		if (tempent instanceof Player) {
-		    // Player
-		    Player pl = (Player) tempent;
-		    if (pl.isInsideVehicle()) {
-			pl.leaveVehicle();
-		    }
-		    if (!pl.isFlying()) {
-			// Move player to spawn
-			Island spawn = getSpawn();
-			if (spawn != null) {
-			    // go to island spawn
-			    pl.teleport(ASkyBlock.getIslandWorld().getSpawnLocation());
-			    plugin.getLogger().warning("During island deletion player " + pl.getName() + " sent to spawn.");
-			} else {
-			    if (!pl.performCommand(Settings.SPAWNCOMMAND)) {
-				plugin.getLogger().warning(
-					"During island deletion player " + pl.getName() + " could not be sent to spawn so was dropped, sorry.");
-			    } else {
-				plugin.getLogger().warning("During island deletion player " + pl.getName() + " sent to spawn using /spawn.");
-			    }
-			}
-		    } else {
-			plugin.getLogger().warning("Not moving player " + pl.getName() + " because they are flying");
-		    }
+    public void removePlayersFromIsland(final Island island) {
+	// Teleport players away
+	for (Player player : plugin.getServer().getOnlinePlayers()) {
+	    if (island.inIslandSpace(player.getLocation())) {
+		// Teleport island players to their island home
+		if (!player.getUniqueId().equals(island.getOwner()) && (plugin.getPlayers().hasIsland(player.getUniqueId()) || plugin.getPlayers().inTeam(player.getUniqueId()))) {
+		    homeTeleport(player);
 		} else {
-		    tempent.remove();
+		    // Move player to spawn
+		    Island spawn = getSpawn();
+		    if (spawn != null) {
+			// go to island spawn
+			player.teleport(ASkyBlock.getIslandWorld().getSpawnLocation());
+			plugin.getLogger().warning("During island deletion player " + player.getName() + " sent to spawn.");
+		    } else {
+			if (!player.performCommand(Settings.SPAWNCOMMAND)) {
+			    plugin.getLogger().warning(
+				    "During island deletion player " + player.getName() + " could not be sent to spawn so was dropped, sorry.");
+			} else {
+			    plugin.getLogger().warning("During island deletion player " + player.getName() + " sent to spawn using /spawn.");
+			}
+		    }
 		}
 	    }
 	}
@@ -1424,5 +1406,23 @@ public class GridManager {
 	    }
 	}
 	return result;
+    }
+
+    /**
+     * Set the spawn point for the island world
+     * @param location
+     */
+    public void setSpawnPoint(Location location) {
+	ASkyBlock.getIslandWorld().setSpawnLocation(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+	//plugin.getLogger().info("DEBUG: setting spawn point to " + location);
+	spawn.setSpawnPoint(location);
+    }
+
+    /**
+     * @return the spawnPoint
+     */
+    public Location getSpawnPoint() {
+	//plugin.getLogger().info("DEBUG: getting spawn point : " + spawn.getSpawnPoint());
+	return spawn.getSpawnPoint();
     }
 }

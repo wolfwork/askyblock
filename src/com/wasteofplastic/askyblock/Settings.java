@@ -48,6 +48,8 @@ public class Settings {
     public final static String ISLANDCOMMAND = "ai";
     // The challenge command
     public static final String CHALLENGECOMMAND = "aic";
+    // Admin command
+    public static final String ADMINCOMMAND = "acid";
     */
     public final static GameType GAMETYPE = GameType.ASKYBLOCK;
     // Permission prefix
@@ -58,8 +60,9 @@ public class Settings {
     public static final String CHALLENGECOMMAND = "asc";
     // The spawn command (Essentials spawn for example)
     public final static String SPAWNCOMMAND = "spawn";
-
-    
+    // Admin command
+    public static final String ADMINCOMMAND = "asadmin";
+   
     public static Set<String> challengeList;
     public static int waiverAmount;
     public static List<String> challengeLevels;
@@ -147,10 +150,12 @@ public class Settings {
     public static boolean allowSpawnAnimalSpawn;
     public static boolean allowSpawnAnimalKilling;
     public static boolean allowSpawnMobKilling;
+    public static boolean allowSpawnMilking;
 
     // Levels
     public static HashMap<MaterialData, Integer> blockLimits;
     public static HashMap<MaterialData, Integer> blockValues;
+    public static boolean fastLevelCalc;
 
     // Challenge completion broadcast
     public static boolean broadcastMessages;
@@ -213,6 +218,7 @@ public class Settings {
     public static boolean setTeamName;
     public static int debug;
     public static boolean useSchematicPanel;
+    public static boolean chooseIslandRandomly;
     public static double underWaterMultiplier;
     public static String teamSuffix;
     public static int levelCost;
@@ -220,5 +226,20 @@ public class Settings {
     public static boolean netherTrees;
     public static int maxTeamSizeVIP;
     public static int maxTeamSizeVIP2;
+    public static boolean teamChat;
+    public static boolean restrictWither;
+    public static List<String> startCommands;
+    public static boolean useWarpPanel;
+    public static List<EntityType> mobWhiteList = new ArrayList<EntityType>();
+    public static int villagerLimit;
+    public static int mobLimit;
+    public static int hopperLimit;
+    public static boolean allowCreeperGriefing;
+    public static List<String> visitorCommandBlockList;
+    public static boolean muteDeathMessages;
+    public static boolean allowFireSpread;
+    public static boolean allowSpawnPVP;
+    public static boolean allowSpawnLavaCollection;
+    public static boolean allowSpawnWaterCollection;
 
 }

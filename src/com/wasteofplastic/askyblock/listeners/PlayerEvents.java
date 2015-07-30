@@ -108,6 +108,7 @@ public class PlayerEvents implements Listener {
     /*
      * Prevent dropping items if player dies on another island
      * This option helps reduce the down side of dying due to traps, etc.
+     * Also handles muting of death messages
      */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = false)
     public void onVistorDeath(final PlayerDeathEvent e) {
@@ -116,6 +117,10 @@ public class PlayerEvents implements Listener {
 	}
 	if (!IslandGuard.inWorld(e.getEntity())) {
 	    return;
+	}
+	// Mute death messages
+	if (Settings.muteDeathMessages) {
+	    e.setDeathMessage(null);
 	}
 	// If the player is on their island then they die and lose everything -
 	// sorry :-(
@@ -140,6 +145,7 @@ public class PlayerEvents implements Listener {
 	// This will override any global settings
 	if (Settings.allowVisitorKeepInvOnDeath) {
 	    InventorySave.getInstance().loadPlayerInventory(e.getPlayer());
+	    InventorySave.getInstance().clearSavedInventory(e.getPlayer());
 	}
     }
     /*
@@ -196,6 +202,8 @@ public class PlayerEvents implements Listener {
 	 * }
 	 */
 	if (!IslandGuard.inWorld(e.getPlayer())) {
+	    // If the player is not in the right world, then cancel any falling flags
+	    unsetFalling(e.getPlayer().getUniqueId());
 	    return;
 	}
 	if (Settings.allowTeleportWhenFalling) {
@@ -223,7 +231,7 @@ public class PlayerEvents implements Listener {
      * 
      * @param e
      */
-    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerTeleport(final PlayerCommandPreprocessEvent e) {
 	if (debug) {
 	    plugin.getLogger().info(e.getEventName());
@@ -247,12 +255,13 @@ public class PlayerEvents implements Listener {
      * 
      * @param e
      */
-    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onPlayerTeleport(final PlayerTeleportEvent e) {
 	if (debug) {
 	    plugin.getLogger().info(e.getEventName());
 	}
-	if (e.getTo() == null || !IslandGuard.inWorld(e.getTo())) {
+	// We only check if the player is teleporting from an Island world and to is not null
+	if (e.getTo() == null || !IslandGuard.inWorld(e.getFrom())) {
 	    return;
 	}
 	// Check if ready
@@ -261,7 +270,9 @@ public class PlayerEvents implements Listener {
 	}
 	// Teleporting while falling check
 	if (!Settings.allowTeleportWhenFalling && e.getPlayer().getGameMode().equals(GameMode.SURVIVAL) && !e.getPlayer().isOp()) {
+	    //plugin.getLogger().info("DEBUG: teleport when falling is not allowed - check if falling");
 	    if (isFalling(e.getPlayer().getUniqueId())) {
+		//plugin.getLogger().info("DEBUG: player is falling");
 		// Sorry you are going to die
 		e.getPlayer().sendMessage(plugin.myLocale(e.getPlayer().getUniqueId()).islandcannotTeleport);
 		e.setCancelled(true);
@@ -294,7 +305,8 @@ public class PlayerEvents implements Listener {
 		if (islandTo.isLocked() || plugin.getPlayers().isBanned(islandTo.getOwner(),e.getPlayer().getUniqueId())) {
 		    e.getPlayer().sendMessage(ChatColor.RED + plugin.myLocale(e.getPlayer().getUniqueId()).lockIslandLocked);
 		    if (!plugin.getGrid().locationIsOnIsland(e.getPlayer(), e.getTo()) && !e.getPlayer().isOp()
-			    && !VaultHelper.checkPerm(e.getPlayer(), Settings.PERMPREFIX + "mod.bypassprotect")) {
+			    && !VaultHelper.checkPerm(e.getPlayer(), Settings.PERMPREFIX + "mod.bypassprotect")
+			    && !VaultHelper.checkPerm(e.getPlayer(), Settings.PERMPREFIX + "mod.bypasslock")) {
 			e.setCancelled(true);
 			return;
 		    }
@@ -327,7 +339,7 @@ public class PlayerEvents implements Listener {
     }
 
     /**
-     * Used to prevent teleporting when falling
+     * Unset the falling flag
      * 
      * @param uniqueId
      */
@@ -335,4 +347,29 @@ public class PlayerEvents implements Listener {
 	// getLogger().info("DEBUG: unset falling");
 	fallingPlayers.remove(uniqueId);
     }
+    
+    /**
+     * Prevents visitors from using commands on islands, like /spawner
+     * @param e
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onVisitorCommand(final PlayerCommandPreprocessEvent e) {
+	if (debug) {
+	    plugin.getLogger().info("Visitor command " + e.getEventName() + ": " + e.getMessage());
+	}
+	if (!IslandGuard.inWorld(e.getPlayer()) || e.getPlayer().isOp()
+		|| VaultHelper.checkPerm(e.getPlayer(), Settings.PERMPREFIX + "mod.bypassprotect")
+		|| plugin.getGrid().locationIsOnIsland(e.getPlayer(), e.getPlayer().getLocation())) {
+	    //plugin.getLogger().info("player is not in world or op etc.");
+	    return;
+	}
+	// Check banned commands
+	//plugin.getLogger().info(Settings.visitorCommandBlockList.toString());
+	String[] args = e.getMessage().substring(1).toLowerCase().split(" ");
+	if (Settings.visitorCommandBlockList.contains(args[0])) {
+	    e.getPlayer().sendMessage(ChatColor.RED + plugin.myLocale(e.getPlayer().getUniqueId()).islandProtected);
+	    e.setCancelled(true);
+	}
+    }
+
 }

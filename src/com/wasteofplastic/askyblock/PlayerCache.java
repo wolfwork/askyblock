@@ -235,7 +235,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).setHomeLocation(location,number);
     }
-    
+
     /**
      * Set the default home location for player
      * @param playerUUID
@@ -245,7 +245,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).setHomeLocation(location,1);
     }
-    
+
     /**
      * Clears any home locations for player
      * @param playerUUID
@@ -254,7 +254,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).clearHomeLocations();
     }
-    
+
     /**
      * Returns the home location, or null if none
      * 
@@ -276,7 +276,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	return playerCache.get(playerUUID).getHomeLocation(1);
     }
-    
+
     /**
      * Provides all home locations for player
      * @param playerUUID
@@ -286,7 +286,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	return playerCache.get(playerUUID).getHomeLocations();
     }
-    
+
     /**
      * Returns the player's island location.
      * Returns an island location OR a team island location
@@ -316,9 +316,10 @@ public class PlayerCache {
 	return playerCache.get(playerUUID).getIslandLevel();
     }
 
-    public void setIslandLevel(UUID playerUUID, Integer islandLevel) {
+    public void setIslandLevel(UUID playerUUID, int islandLevel) {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).setIslandLevel(islandLevel);
+	plugin.getChatListener().setPlayerLevel(playerUUID, islandLevel);
     }
 
     public void setTeamIslandLocation(UUID playerUUID, Location islandLocation) {
@@ -425,6 +426,8 @@ public class PlayerCache {
 	addPlayer(teamLeader);
 	addPlayer(playerUUID);
 	playerCache.get(teamLeader).removeMember(playerUUID);
+	// Remove from team chat too
+	plugin.getChatListener().unSetPlayer(playerUUID);
     }
 
     /**
@@ -444,8 +447,12 @@ public class PlayerCache {
      */
     public void save(UUID playerUUID) {
 	playerCache.get(playerUUID).save();
+	// Save the name + UUID in the database if it ready
+	if (plugin.getTinyDB().isDbReady()) {
+	    plugin.getTinyDB().savePlayerName(playerCache.get(playerUUID).getPlayerName(), playerUUID);
+	}
     }
-
+    
     public void completeChallenge(UUID playerUUID, String challenge) {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).completeChallenge(challenge);
@@ -470,26 +477,24 @@ public class PlayerCache {
 		return id;
 	    }
 	}
-	// Look in the file system
-	for (final File f : plugin.getPlayersFolder().listFiles()) {
-	    // Need to remove the .yml suffix
-	    String fileName = f.getName();
-	    if (fileName.endsWith(".yml")) {
-		try {
-		    final UUID playerUUID = UUID.fromString(fileName.substring(0, fileName.length() - 4));
-		    if (plugin.getServer().getOfflinePlayer(playerUUID).getName().equalsIgnoreCase(string)) {
-			return playerUUID;
-		    }
-		} catch (Exception e) {
-		}
-	    }
+	// Look in the database if it ready
+	if (plugin.getTinyDB().isDbReady()) {
+	    return plugin.getTinyDB().getPlayerUUID(string);
 	}
 	return null;
     }
 
+    /**
+     * Sets the player's name and updates the name>UUID database is up to date
+     * @param uniqueId
+     * @param name
+     */
     public void setPlayerName(UUID uniqueId, String name) {
 	addPlayer(uniqueId);
 	playerCache.get(uniqueId).setPlayerN(name);
+	// Save the name in the name database. Note that the old name will still work until someone takes it
+	// This feature enables admins to locate 'fugitive' players even if they change their name
+	plugin.getTinyDB().savePlayerName(name, uniqueId);
     }
 
     /**
@@ -639,9 +644,10 @@ public class PlayerCache {
      * @param localeName
      */
     public void setLocale(UUID playerUUID, String localeName) {
+	addPlayer(playerUUID);
 	playerCache.get(playerUUID).setLocale(localeName);
     }
-    
+
     /**
      * The rating of the initial starter island out of 100. Default is 50
      * @param playerUUID
@@ -651,7 +657,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	return playerCache.get(playerUUID).getStartIslandRating();
     }
-    
+
     /**
      * Record the island rating that the player started with
      * @param playerUUID
@@ -661,7 +667,7 @@ public class PlayerCache {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).setStartIslandRating(rating);
     }
-    
+
     /**
      * Clear the starter island rating from the player's record
      * @param playerUUID
@@ -669,7 +675,7 @@ public class PlayerCache {
     public void clearStartIslandRating(UUID playerUUID) {
 	setStartIslandRating(playerUUID, 0);
     }
-    
+
     /**
      * Ban target from a player's island
      * @param playerUUID
@@ -691,7 +697,7 @@ public class PlayerCache {
 	    }
 	}
     }
-    
+
     /**
      * Unban target from player's island
      * @param playerUUID
@@ -713,7 +719,7 @@ public class PlayerCache {
 	    }
 	}
     }
-    
+
     /**
      * @param playerUUID
      * @param targetUUID
@@ -739,7 +745,7 @@ public class PlayerCache {
 	}
 	return false;
     }
-    
+
     /**
      * @param playerUUID
      * @return ban list for player

@@ -2,14 +2,14 @@ package com.wasteofplastic.askyblock;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.entity.Player;
-
-import com.wasteofplastic.askyblock.panels.BiomesPanel;
 
 /**
  * Provides a programming interface
@@ -111,7 +111,7 @@ public class ASkyBlockAPI {
      * @return Location of sign or null if one does not exist
      */
     public Location getWarp(UUID playerUUID) {
-	return WarpSigns.getWarp(playerUUID);
+	return plugin.getWarpSignsListener().getWarp(playerUUID);
     }
 
     /**
@@ -122,7 +122,7 @@ public class ASkyBlockAPI {
      *         that spot
      */
     public String getWarpOwner(Location location) {
-	return WarpSigns.getWarpOwner(location);
+	return plugin.getWarpSignsListener().getWarpOwner(location);
     }
 
     /**
@@ -177,9 +177,17 @@ public class ASkyBlockAPI {
      * @return String set of warps
      */
     public Set<UUID> listWarps() {
-	return WarpSigns.listWarps();
+	return plugin.getWarpSignsListener().listWarps();
     }
 
+    /**
+     * Forces the warp panel to update and the warp list event to fire so that
+     * the warps can be sorted how you like.
+     */
+    public void updateWarpPanel() {
+	plugin.getWarpPanel().updatePanel();
+    }
+    
     /**
      * Checks if a specific location is within the protected range of an island
      * owned by the player
@@ -225,7 +233,7 @@ public class ASkyBlockAPI {
      * @return true if the setting was successful
      */
     public boolean setIslandBiome(Location islandLoc, Biome biomeType) {
-	return BiomesPanel.setIslandBiome(islandLoc, biomeType);
+	return plugin.getBiomes().setIslandBiome(islandLoc, biomeType);
     }
 
     /**
@@ -283,7 +291,7 @@ public class ASkyBlockAPI {
     
     /**
      * Provides the spawn range
-     * @return
+     * @return spawn range
      */
     public int getSpawnRange() {
 	return plugin.getGrid().getSpawn().getProtectionSize();
@@ -296,6 +304,38 @@ public class ASkyBlockAPI {
      */
     public boolean isAtSpawn(Location location) {
 	return plugin.getGrid().isAtSpawn(location);
+    }
+    
+    /**
+     * Get the island overworld
+     * @return the island overworld
+     */
+    public World getIslandWorld() {
+	return ASkyBlock.getIslandWorld();
+    }
+    
+    /**
+     * Get the nether world
+     * @return the nether world
+     */
+    public World getNetherWorld() {
+	return ASkyBlock.getNetherWorld();
+    }
+    
+    /**
+     * Whether the new nether is being used or not
+     * @return true if new nether is being used
+     */
+    public boolean isNewNether() {
+	return Settings.newNether;
+    }
+    
+    /**
+     * Get the top ten list
+     * @return Top ten list
+     */
+    public Map<UUID, Integer> getTopTen() {
+	return TopTen.getTopTenList();
     }
     
 }

@@ -20,16 +20,14 @@ package com.wasteofplastic.askyblock;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
@@ -39,10 +37,10 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Guardian;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
-import org.bukkit.event.Listener;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
@@ -62,16 +60,20 @@ import com.wasteofplastic.askyblock.commands.IslandCmd;
 import com.wasteofplastic.askyblock.generators.ChunkGeneratorWorld;
 import com.wasteofplastic.askyblock.listeners.AcidEffect;
 import com.wasteofplastic.askyblock.listeners.AcidInventory;
+import com.wasteofplastic.askyblock.listeners.ChatListener;
+import com.wasteofplastic.askyblock.listeners.HeroChatListener;
 import com.wasteofplastic.askyblock.listeners.IslandGuard;
 import com.wasteofplastic.askyblock.listeners.IslandGuardNew;
 import com.wasteofplastic.askyblock.listeners.JoinLeaveEvents;
 import com.wasteofplastic.askyblock.listeners.LavaCheck;
 import com.wasteofplastic.askyblock.listeners.NetherPortals;
 import com.wasteofplastic.askyblock.listeners.PlayerEvents;
+import com.wasteofplastic.askyblock.listeners.WitherEvents;
 import com.wasteofplastic.askyblock.listeners.WorldEnter;
 import com.wasteofplastic.askyblock.panels.BiomesPanel;
 import com.wasteofplastic.askyblock.panels.ControlPanel;
 import com.wasteofplastic.askyblock.panels.SchematicsPanel;
+import com.wasteofplastic.askyblock.panels.WarpPanel;
 import com.wasteofplastic.askyblock.util.Util;
 import com.wasteofplastic.askyblock.util.VaultHelper;
 
@@ -97,14 +99,20 @@ public class ASkyBlock extends JavaPlugin {
     // Players object
     private PlayerCache players;
     // Listeners
-    private Listener warpSignsListener;
-    private Listener lavaListener;
+    private WarpSigns warpSignsListener;
+    private LavaCheck lavaListener;
     // Biome chooser object
     private BiomesPanel biomes;
     // Island grid manager
     private GridManager grid;
     // Island command object
     private IslandCmd islandCmd;
+    // Database
+    private TinyDB tinyDB;
+    // Warp panel
+    private WarpPanel warpPanel;
+    // V1.8 or later
+    private boolean onePointEight;
 
     private boolean debug = false;
 
@@ -116,6 +124,12 @@ public class ASkyBlock extends JavaPlugin {
 
     // Messages object
     private Messages messages;
+
+    // Team chat listener
+    private ChatListener chatListener;
+
+    // Schematics panel object
+    private SchematicsPanel schematicsPanel;
 
     /**
      * Returns the World object for the island world named in config.yml.
@@ -189,11 +203,18 @@ public class ASkyBlock extends JavaPlugin {
 	    if (grid != null) {
 		grid.saveGrid();
 	    }
-	    WarpSigns.saveWarpList();
+	    // Save the warps and do not reload the panel
+	    if (warpSignsListener != null) {
+		warpSignsListener.saveWarpList(false);
+	    }
 	    if (messages != null) {
 		messages.saveMessages();
 	    }
 	    TopTen.topTenSave();
+	    // Close the name database
+	    if (tinyDB != null) {
+		tinyDB.closeDB();
+	    }
 	} catch (final Exception e) {
 	    getLogger().severe("Something went wrong saving files!");
 	    e.printStackTrace();
@@ -208,8 +229,18 @@ public class ASkyBlock extends JavaPlugin {
     public void onEnable() {
 	// instance of this plugin
 	plugin = this;
+	// Check server version - check for a class that only 1.8 has
+	Class<?> clazz;
+	try {
+	    clazz = Class.forName("org.bukkit.event.player.PlayerInteractAtEntityEvent");
+	} catch (Exception e) {
+	    //getLogger().info("No PlayerInteractAtEntityEvent found.");
+	    clazz = null;
+	}
+	if (clazz != null) {
+	    onePointEight = true;
+	}
 	saveDefaultConfig();
-	Challenges.saveDefaultChallengeConfig();
 	// Check to see if island distance is set or not
 	if (getConfig().getInt("island.distance", -1) < 1) {
 	    getLogger().severe("+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
@@ -230,7 +261,19 @@ public class ASkyBlock extends JavaPlugin {
 	    return;
 	}
 	// Load all the configuration of the plugin and localization strings
-	loadPluginConfig();
+	if (!loadPluginConfig()) {
+	    // Currently, the only setup error is where the world_name does not match
+	    if (Settings.GAMETYPE.equals(Settings.GameType.ASKYBLOCK)) {
+		getCommand("island").setExecutor(new NotSetup(Reason.WORLD_NAME));
+		getCommand("asc").setExecutor(new NotSetup(Reason.WORLD_NAME));
+		getCommand("asadmin").setExecutor(new NotSetup(Reason.WORLD_NAME));
+	    } else {
+		getCommand("ai").setExecutor(new NotSetup(Reason.WORLD_NAME));
+		getCommand("aic").setExecutor(new NotSetup(Reason.WORLD_NAME));
+		getCommand("acid").setExecutor(new NotSetup(Reason.WORLD_NAME));
+	    }
+	    return;
+	}
 	if (Settings.useEconomy && !VaultHelper.setupEconomy()) {
 	    getLogger().warning("Could not set up economy! - Running without an economy.");
 	    Settings.useEconomy = false;
@@ -255,13 +298,27 @@ public class ASkyBlock extends JavaPlugin {
 	// Set up commands for this plugin
 	islandCmd = new IslandCmd(this);
 	if (Settings.GAMETYPE.equals(Settings.GameType.ASKYBLOCK)) {
+	    AdminCmd adminCmd = new AdminCmd(this);
+
 	    getCommand("island").setExecutor(islandCmd);
+	    getCommand("island").setTabCompleter(islandCmd);
+
 	    getCommand("asc").setExecutor(getChallenges());
-	    getCommand("asadmin").setExecutor(new AdminCmd(this));
+	    getCommand("asc").setTabCompleter(getChallenges());
+
+	    getCommand("asadmin").setExecutor(adminCmd);
+	    getCommand("asadmin").setTabCompleter(adminCmd);
 	} else {
+	    AdminCmd adminCmd = new AdminCmd(this);
+
 	    getCommand("ai").setExecutor(islandCmd);
+	    getCommand("ai").setTabCompleter(islandCmd);
+
 	    getCommand("aic").setExecutor(getChallenges());
-	    getCommand("acid").setExecutor(new AdminCmd(this));
+	    getCommand("aic").setTabCompleter(getChallenges());
+
+	    getCommand("acid").setExecutor(adminCmd);
+	    getCommand("acid").setTabCompleter(adminCmd);
 	}
 	// Register events that this plugin uses
 	// registerEvents();
@@ -286,10 +343,19 @@ public class ASkyBlock extends JavaPlugin {
 		// server starts.
 		getIslandWorld();
 		// Load warps
-		WarpSigns.loadWarpList();
+		getWarpSignsListener().loadWarpList();
+		// Load the warp panel
+		if (Settings.useWarpPanel) {
+		    warpPanel = new WarpPanel(plugin);
+		    getServer().getPluginManager().registerEvents(warpPanel, plugin);
+		}
 		// Minishop - must wait for economy to load before we can use
 		// econ
 		getServer().getPluginManager().registerEvents(new ControlPanel(plugin), plugin);
+		// Try to register Herochat
+		if (Bukkit.getServer().getPluginManager().isPluginEnabled("Herochat")) {
+		    getServer().getPluginManager().registerEvents(new HeroChatListener(plugin), plugin);
+		}
 		if (getServer().getWorld(Settings.worldName).getGenerator() == null) {
 		    // Check if the world generator is registered correctly
 		    getLogger().severe("********* The Generator for " + plugin.getName() + " is not registered so the plugin cannot start ********");
@@ -315,8 +381,17 @@ public class ASkyBlock extends JavaPlugin {
 			// load the list - order matters - grid first, then top
 			// ten to optimize upgrades
 			// Load grid
-			grid = new GridManager(plugin);
+			if (grid == null) {
+			    grid = new GridManager(plugin);
+			}
 			TopTen.topTenLoad();
+			if (tinyDB == null) {
+			    tinyDB = new TinyDB(plugin);
+			}
+			// Add any online players to the DB
+			for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
+			    tinyDB.savePlayerName(onlinePlayer.getName(), onlinePlayer.getUniqueId());
+			}
 			getLogger().info("All files loaded. Ready to play...");
 		    }
 		});
@@ -353,6 +428,10 @@ public class ASkyBlock extends JavaPlugin {
 			public void run() {
 			    List<Entity> entList = islandWorld.getEntities();
 			    for (Entity current : entList) {
+				if (plugin.isOnePointEight() && current instanceof Guardian) {
+				    // Guardians are immune to acid too
+				    continue;
+				}
 				if ((current instanceof Monster) && Settings.mobAcidDamage > 0D) {
 				    if ((current.getLocation().getBlock().getType() == Material.WATER)
 					    || (current.getLocation().getBlock().getType() == Material.STATIONARY_WATER)) {
@@ -480,52 +559,24 @@ public class ASkyBlock extends JavaPlugin {
      * @param player
      *            - player name String
      * @param removeBlocks
-     *            - true to remove the siland blocks
+     *            - true to remove the island blocks
      */
     public void deletePlayerIsland(final UUID player, boolean removeBlocks) {
 	// Removes the island
 	// getLogger().info("DEBUG: deleting player island");
 	CoopPlay.getInstance().clearAllIslandCoops(player);
-	WarpSigns.removeWarp(player);
-	if (removeBlocks) {
-	    // Check that the player's island location exists and is in the
-	    // island world
-	    Location islandLoc = players.getIslandLocation(player);
-	    if (islandLoc != null) {
-		if (islandLoc.getWorld() != null) {
-		    if (islandLoc.getWorld().equals(getIslandWorld())) {
-			// Over World start
-			grid.removeMobsFromIsland(islandLoc);
-			new DeleteIslandChunk(this, islandLoc);
-			// Delete the new nether island too (if it exists)
-			if (Settings.createNether && Settings.newNether) {
-			    Location otherIsland = islandLoc.toVector().toLocation(ASkyBlock.getNetherWorld());
-			    grid.removeMobsFromIsland(otherIsland);
-			    // Delete island
-			    new DeleteIslandChunk(plugin, otherIsland);  
-			}
-		    } else if (Settings.createNether && Settings.newNether && islandLoc.getWorld().equals(getNetherWorld())) {
-			// Nether World Start
-			grid.removeMobsFromIsland(islandLoc);
-			new DeleteIslandChunk(this, islandLoc);
-			// Delete the overworld island too
-			Location otherIsland = islandLoc.toVector().toLocation(ASkyBlock.getIslandWorld());
-			grid.removeMobsFromIsland(otherIsland);
-			// Delete island
-			new DeleteIslandChunk(plugin, otherIsland);  
-		    } else {
-			getLogger().severe("Cannot delete island at location " + islandLoc.toString() + " because it is not in the official island world");
-		    }
-		} else {
-		    getLogger().severe("Cannot delete island at location " + islandLoc.toString() + " because the world is unknown");
-		}
-	    }
-	} else {
-	    Island island = grid.getIsland(player);
-	    if (island != null) {
+	getWarpSignsListener().removeWarp(player);
+	Island island = grid.getIsland(player);
+	if (island != null) {
+	    if (removeBlocks) {
+		grid.removePlayersFromIsland(island);
+		new DeleteIslandChunk(this, island);
+	    } else {
 		island.setLocked(false);
 		grid.setIslandOwner(island, null);
 	    }
+	} else {
+	    getLogger().severe("Could not delete player: " + player.toString() + " island!");
 	}
 	players.zeroPlayerData(player);
     }
@@ -542,7 +593,7 @@ public class ASkyBlock extends JavaPlugin {
      */
     public Challenges getChallenges() {
 	if (challenges == null) {
-	    challenges = new Challenges(getPlayers());
+	    challenges = new Challenges(this);
 	}
 	return challenges;
     }
@@ -556,6 +607,9 @@ public class ASkyBlock extends JavaPlugin {
      * @return the grid
      */
     public GridManager getGrid() {
+	if (grid == null) {
+	    grid = new GridManager(this);
+	}
 	return grid;
     }
 
@@ -607,7 +661,8 @@ public class ASkyBlock extends JavaPlugin {
     /**
      * Loads the various settings from the config.yml file into the plugin
      */
-    public void loadPluginConfig() {
+    @SuppressWarnings("deprecation")
+    public boolean loadPluginConfig() {
 	// getLogger().info("*********************************************");
 	try {
 	    getConfig();
@@ -615,8 +670,6 @@ public class ASkyBlock extends JavaPlugin {
 	    e.printStackTrace();
 	}
 	//CompareConfigs.compareConfigs();
-	// Get the challenges
-	Challenges.getChallengeConfig();
 	// Get the localization strings
 	//getLocale();
 	// Add this to the config
@@ -668,7 +721,16 @@ public class ASkyBlock extends JavaPlugin {
 	}
 	// Debug
 	Settings.debug = getConfig().getInt("debug", 0);
-	//Settings.useSchematicPanel = getConfig().getBoolean("general.useschematicspanel", true);
+	// Mute death messages
+	Settings.muteDeathMessages = getConfig().getBoolean("general.mutedeathmessages", false);
+	// Warp panel
+	Settings.useWarpPanel = getConfig().getBoolean("general.usewarppanel", true);
+	// Fast level calculation (this is really fast)
+	Settings.fastLevelCalc = getConfig().getBoolean("general.fastlevelcalc", true);
+	// Restrict wither
+	Settings.restrictWither = getConfig().getBoolean("general.restrictwither", true);
+	// Team chat
+	Settings.teamChat = getConfig().getBoolean("general.teamchat", true);
 	// TEAMSUFFIX as island level
 	Settings.setTeamName = getConfig().getBoolean("general.setteamsuffix", false);
 	Settings.teamSuffix = getConfig().getString("general.teamsuffix","([level])");
@@ -688,10 +750,13 @@ public class ASkyBlock extends JavaPlugin {
 	// Island reset commands
 	Settings.resetCommands = getConfig().getStringList("general.resetcommands");
 	Settings.leaveCommands = getConfig().getStringList("general.leavecommands");
+	Settings.startCommands = getConfig().getStringList("general.startcommands");
 	Settings.useControlPanel = getConfig().getBoolean("general.usecontrolpanel", false);
 	// Check if /island command is allowed when falling
 	Settings.allowTeleportWhenFalling = getConfig().getBoolean("general.allowfallingteleport", true);
 	Settings.fallingCommandBlockList = getConfig().getStringList("general.blockingcommands");
+	// Visitor command banned list
+	Settings.visitorCommandBlockList = getConfig().getStringList("general.visitorbannedcommands");
 	// Max team size
 	Settings.maxTeamSize = getConfig().getInt("island.maxteamsize", 4);
 	// Deprecated settings - use permission askyblock.team.maxsize.<number> instead
@@ -708,6 +773,25 @@ public class ASkyBlock extends JavaPlugin {
 	}
 	// Settings from config.yml
 	Settings.worldName = getConfig().getString("general.worldName");
+	// Check if the world name matches island.yml info
+	File islandFile = new File(plugin.getDataFolder(), "islands.yml");
+	if (islandFile.exists()) {
+	    YamlConfiguration islandYaml = new YamlConfiguration();
+	    try {
+		islandYaml.load(islandFile);
+		if (!islandYaml.contains(Settings.worldName)) {
+		    // Bad news, stop everything and tell the admin
+		    getLogger().severe("+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
+		    getLogger().severe("More set up is required. Go to config.yml and edit it.");
+		    getLogger().severe("");
+		    getLogger().severe("Check island world name is same as world in islands.yml.");
+		    getLogger().severe("If you are resetting and changing world, delete island.yml and restart.");
+		    getLogger().severe("");
+		    getLogger().severe("+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
+		    return false;
+		}
+	    } catch (Exception e) {}	    
+	}
 	Settings.createNether = getConfig().getBoolean("general.createnether", true);
 	if (!Settings.createNether) {
 	    getLogger().info("The Nether is disabled");
@@ -912,8 +996,8 @@ public class ASkyBlock extends JavaPlugin {
 		Settings.island_protectionRange = Settings.islandDistance;
 	    }
 	}
-	if (Settings.island_protectionRange < 50) {
-	    Settings.island_protectionRange = 50;
+	if (Settings.island_protectionRange < 0) {
+	    Settings.island_protectionRange = 0;
 	}
 	Settings.resetChallenges = getConfig().getBoolean("general.resetchallenges", true);
 	Settings.resetMoney = getConfig().getBoolean("general.resetmoney", true);
@@ -922,7 +1006,7 @@ public class ASkyBlock extends JavaPlugin {
 
 	Settings.startingMoney = getConfig().getDouble("general.startingmoney", 0D);
 	Settings.respawnOnIsland = getConfig().getBoolean("general.respawnonisland", false);
-	Settings.newNether = getConfig().getBoolean("general.newnether", false);
+	Settings.newNether = getConfig().getBoolean("general.newnether", true);
 	Settings.netherTrees = getConfig().getBoolean("general.nethertrees", true);
 	// Nether spawn protection radius
 	Settings.netherSpawnRadius = getConfig().getInt("general.netherspawnradius", 25);
@@ -958,7 +1042,26 @@ public class ASkyBlock extends JavaPlugin {
 	// getConfig().getBoolean("general.ultrasafeboats", true);
 	Settings.logInRemoveMobs = getConfig().getBoolean("general.loginremovemobs", true);
 	Settings.islandRemoveMobs = getConfig().getBoolean("general.islandremovemobs", false);
-
+	List<String> mobWhiteList = getConfig().getStringList("general.mobwhitelist");
+	Settings.mobWhiteList.clear();
+	String valid = "BLAZE, CREEPER, SKELETON, SPIDER, GIANT, ZOMBIE, GHAST, PIG_ZOMBIE, "
+		+ "ENDERMAN, CAVE_SPIDER, SILVERFISH,  WITHER, WITCH, ENDERMITE,"
+		+ " GUARDIAN";
+	for (String mobName : mobWhiteList) {
+	    if (valid.contains(mobName.toUpperCase())) {
+		try {
+		    Settings.mobWhiteList.add(EntityType.valueOf(mobName.toUpperCase()));
+		} catch (Exception e) {
+		    plugin.getLogger().severe("Error in config.yml, mobwhitelist value '" + mobName + "' is invalid.");
+		    plugin.getLogger().severe("Possible values are : Blaze, Cave_Spider, Creeper, Enderman, Endermite, Giant, Guardian, "
+			    + "Pig_Zombie, Silverfish, Skeleton, Spider, Witch, Wither, Zombie");
+		}
+	    } else {
+		plugin.getLogger().severe("Error in config.yml, mobwhitelist value '" + mobName + "' is invalid.");
+		plugin.getLogger().severe("Possible values are : Blaze, Cave_Spider, Creeper, Enderman, Endermite, Giant, Guardian, "
+			+ "Pig_Zombie, Silverfish, Skeleton, Spider, Witch, Wither, Zombie");
+	    }
+	}
 	// getLogger().info("DEBUG: island level is " + Settings.island_level);
 	// Get chest items
 	final String[] chestItemString = getConfig().getString("island.chestItems").split(" ");
@@ -1009,10 +1112,16 @@ public class ASkyBlock extends JavaPlugin {
 			}
 		    }
 		} else {
+		    Material mat;
+		    if (StringUtils.isNumeric(amountdata[0])) {
+			mat = Material.getMaterial(Integer.parseInt(amountdata[0]));
+		    } else {
+			mat = Material.getMaterial(amountdata[0].toUpperCase());
+		    }
 		    if (amountdata.length == 2) {
-			tempChest[i] = new ItemStack(Material.getMaterial(amountdata[0]), Integer.parseInt(amountdata[1]));
+			tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[1]));
 		    } else if (amountdata.length == 3) {
-			tempChest[i] = new ItemStack(Material.getMaterial(amountdata[0]), Integer.parseInt(amountdata[2]), Short.parseShort(amountdata[1]));
+			tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[2]), Short.parseShort(amountdata[1]));
 		    }
 		}
 	    } catch (java.lang.IllegalArgumentException ex) {
@@ -1052,10 +1161,12 @@ public class ASkyBlock extends JavaPlugin {
 	Settings.endermanDeathDrop = getConfig().getBoolean("island.endermandeathdrop", true);
 	Settings.allowEndermanGriefing = getConfig().getBoolean("island.allowendermangriefing", true);
 	Settings.allowCreeperDamage = getConfig().getBoolean("island.allowcreeperdamage", true);
+	Settings.allowCreeperGriefing = getConfig().getBoolean("island.allowcreepergriefing", false);
 	Settings.allowTNTDamage = getConfig().getBoolean("island.allowtntdamage", false);
 	Settings.allowMonsterEggs = getConfig().getBoolean("island.allowspawneggs", false);
 	Settings.allowBreeding = getConfig().getBoolean("island.allowbreeding", false);
 	Settings.allowFire = getConfig().getBoolean("island.allowfire", false);
+	Settings.allowFireSpread = getConfig().getBoolean("island.allowfirespread", false);
 	Settings.allowChestDamage = getConfig().getBoolean("island.allowchestdamage", false);
 	Settings.allowLeashUse = getConfig().getBoolean("island.allowleashuse", false);
 	Settings.allowHurtMonsters = getConfig().getBoolean("island.allowhurtmonsters", true);
@@ -1089,14 +1200,12 @@ public class ASkyBlock extends JavaPlugin {
 	Settings.allowSpawnEnchanting = getConfig().getBoolean("spawn.allowenchanting", true);
 	Settings.allowSpawnAnvilUse = getConfig().getBoolean("spawn.allowanviluse", true);
 	Settings.allowSpawnBeaconAccess = getConfig().getBoolean("spawn.allowbeaconaccess", false);
+	Settings.allowSpawnPVP = getConfig().getBoolean("spawn.allowPVP", false);
+	Settings.allowSpawnMilking = getConfig().getBoolean("spawn.allowmilking", false);
+	Settings.allowSpawnLavaCollection = getConfig().getBoolean("spawn.allowlavacollection", false);
+	Settings.allowSpawnWaterCollection = getConfig().getBoolean("spawn.allowwatercollection", false);
 	// Challenges
-	final Set<String> challengeList = Challenges.getChallengeConfig().getConfigurationSection("challenges.challengeList").getKeys(false);
-	Settings.challengeList = challengeList;
-	Settings.challengeLevels = Arrays.asList(Challenges.getChallengeConfig().getString("challenges.levels").split(" "));
-	Settings.waiverAmount = Challenges.getChallengeConfig().getInt("challenges.waiveramount", 1);
-	if (Settings.waiverAmount < 0) {
-	    Settings.waiverAmount = 0;
-	}
+	getChallenges();
 	// Challenge completion
 	Settings.broadcastMessages = getConfig().getBoolean("general.broadcastmessages", true);
 
@@ -1115,7 +1224,12 @@ public class ASkyBlock extends JavaPlugin {
 		    if (split.length>1) {
 			data = Byte.valueOf(split[1]);
 		    }
-		    Material mat = Material.valueOf(split[0]);
+		    Material mat;
+		    if (StringUtils.isNumeric(split[0])) {
+			mat = Material.getMaterial(Integer.parseInt(split[0]));
+		    } else {
+			mat = Material.valueOf(split[0].toUpperCase());
+		    }
 		    MaterialData materialData = new MaterialData(mat);
 		    materialData.setData(data);
 		    Settings.blockLimits.put(materialData, blockValuesConfig.getInt("limits." + material, 0));
@@ -1136,7 +1250,12 @@ public class ASkyBlock extends JavaPlugin {
 		    if (split.length>1) {
 			data = Byte.valueOf(split[1]);
 		    }
-		    Material mat = Material.valueOf(split[0]);
+		    Material mat;
+		    if (StringUtils.isNumeric(split[0])) {
+			mat = Material.getMaterial(Integer.parseInt(split[0]));
+		    } else {
+			mat = Material.valueOf(split[0].toUpperCase());
+		    }
 		    MaterialData materialData = new MaterialData(mat);
 		    materialData.setData(data);
 		    Settings.blockValues.put(materialData, blockValuesConfig.getInt("blocks." + material, 0));
@@ -1165,9 +1284,13 @@ public class ASkyBlock extends JavaPlugin {
 	    Settings.defaultBiome = Biome.PLAINS;
 	}
 	Settings.breedingLimit = getConfig().getInt("general.breedinglimit", 0);
-
+	Settings.villagerLimit = getConfig().getInt("general.villagerlimit", 0);
+	Settings.hopperLimit = getConfig().getInt("general.hopperlimit", 0);
+	Settings.mobLimit = getConfig().getInt("general.moblimit", 0);
 	Settings.removeCompleteOntimeChallenges = getConfig().getBoolean("general.removecompleteonetimechallenges", false);
 	Settings.addCompletedGlow = getConfig().getBoolean("general.addcompletedglow", true);
+	// All done
+	return true;
     }
 
 
@@ -1183,14 +1306,7 @@ public class ASkyBlock extends JavaPlugin {
 	// Player events
 	manager.registerEvents(new PlayerEvents(this), this);
 	// New V1.8 events
-	Class<?> clazz;
-	try {
-	    clazz = Class.forName("org.bukkit.event.player.PlayerInteractAtEntityEvent");
-	} catch (Exception e) {
-	    getLogger().info("No PlayerInteractAtEntityEvent found.");
-	    clazz = null;
-	}
-	if (clazz != null) {
+	if (onePointEight) {
 	    manager.registerEvents(new IslandGuardNew(this), this);
 	}
 	// Events for when a player joins or leaves the server
@@ -1205,7 +1321,7 @@ public class ASkyBlock extends JavaPlugin {
 	    manager.registerEvents(new SafeBoat(this), this);
 	}
 	// Enables warp signs in ASkyBlock
-	warpSignsListener = new WarpSigns();
+	warpSignsListener = new WarpSigns(this);
 	manager.registerEvents(warpSignsListener, this);
 	// Control panel - for future use
 	// manager.registerEvents(new ControlPanel(), this);
@@ -1213,12 +1329,20 @@ public class ASkyBlock extends JavaPlugin {
 	manager.registerEvents(new AcidInventory(this), this);
 	// Biomes
 	// Load Biomes
-	biomes = new BiomesPanel();
+	biomes = new BiomesPanel(this);
 	manager.registerEvents(biomes, this);
 	// Schematics panel
-	manager.registerEvents(new SchematicsPanel(), this);
+	schematicsPanel = new SchematicsPanel(this);
+	manager.registerEvents(schematicsPanel, this);
 	// Track incoming world teleports
 	manager.registerEvents(new WorldEnter(this), this);
+	// Team chat
+	chatListener = new ChatListener(this);
+	manager.registerEvents(chatListener, this);
+	// Wither
+	if (Settings.restrictWither) {
+	    manager.registerEvents(new WitherEvents(this), this);
+	}
     }
 
 
@@ -1274,7 +1398,7 @@ public class ASkyBlock extends JavaPlugin {
 	lavaListener = new LavaCheck(this);
 	manager.registerEvents(lavaListener, this);
 	// Enables warp signs in ASkyBlock
-	warpSignsListener = new WarpSigns();
+	warpSignsListener = new WarpSigns(this);
 	manager.registerEvents(warpSignsListener, this);
     }
 
@@ -1348,6 +1472,50 @@ public class ASkyBlock extends JavaPlugin {
      * @return the islandCmd
      */
     public IslandCmd getIslandCmd() {
-        return islandCmd;
+	return islandCmd;
+    }
+
+    /**
+     * @return the nameDB
+     */
+    public TinyDB getTinyDB() {
+	return tinyDB;
+    }
+
+    public ChatListener getChatListener() {
+	return chatListener;	
+    }
+
+    /**
+     * @return the warpSignsListener
+     */
+    public WarpSigns getWarpSignsListener() {
+	return warpSignsListener;
+    }
+
+    /**
+     * @return the warpPanel
+     */
+    public WarpPanel getWarpPanel() {
+	if (warpPanel == null) {
+	    // Probably due to a reload
+	    warpPanel = new WarpPanel(this);
+	    getServer().getPluginManager().registerEvents(warpPanel, plugin);
+	}
+	return warpPanel;
+    }
+
+    /**
+     * @return the schematicsPanel
+     */
+    public SchematicsPanel getSchematicsPanel() {
+	return schematicsPanel;
+    }
+
+    /**
+     * @return the onePointEight
+     */
+    public boolean isOnePointEight() {
+        return onePointEight;
     }
 }

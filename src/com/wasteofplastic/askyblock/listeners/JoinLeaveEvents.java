@@ -55,14 +55,20 @@ public class JoinLeaveEvents implements Listener {
     public void onPlayerJoin(final PlayerJoinEvent event) {
 	final Player player = event.getPlayer();
 	final UUID playerUUID = player.getUniqueId();
-	// Get language
-	String language = getLanguage(player);
-	//plugin.getLogger().info("DEBUG: language = " + language);
-	// Check if we have this language
-	if (plugin.getResource("locale/" + language + ".yml") != null) {
-	    if (plugin.getPlayers().getLocale(playerUUID).isEmpty()) {
-		plugin.getPlayers().setLocale(playerUUID, language);
+	// Check language permission
+	if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "island.lang")) {
+	    // Get language
+	    String language = getLanguage(player);
+	    //plugin.getLogger().info("DEBUG: language = " + language);
+	    // Check if we have this language
+	    if (plugin.getResource("locale/" + language + ".yml") != null) {
+		if (plugin.getPlayers().getLocale(playerUUID).isEmpty()) {
+		    plugin.getPlayers().setLocale(playerUUID, language);
+		}
 	    }
+	} else {
+	    // Default locale
+	    plugin.getPlayers().setLocale(playerUUID,"");
 	}
 	// Check updates
 	if (player.isOp() && plugin.getUpdateCheck() != null) {
@@ -174,9 +180,11 @@ public class JoinLeaveEvents implements Listener {
 	    }
 	}
 
-	// Set the player's name (it may have changed), but only if it isn't null
+	// Set the player's name (it may have changed), but only if it isn't empty
 	if (!player.getName().isEmpty()) {
 	    players.setPlayerName(playerUUID, player.getName());
+	    // Add to tinyDB
+	    plugin.getTinyDB().savePlayerName(player.getName(), playerUUID);
 	} else {
 	    plugin.getLogger().warning("Player that just logged in has no name! " + playerUUID.toString());
 	}
@@ -200,6 +208,8 @@ public class JoinLeaveEvents implements Listener {
 		plugin.getGrid().homeTeleport(player);
 	    }
 	}
+	// Set the player's level
+	plugin.getChatListener().setPlayerLevel(playerUUID, plugin.getPlayers().getIslandLevel(player.getUniqueId()));
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -207,6 +217,7 @@ public class JoinLeaveEvents implements Listener {
 	// Remove from coop list
 	CoopPlay.getInstance().clearMyCoops(event.getPlayer());
 	CoopPlay.getInstance().clearMyInvitedCoops(event.getPlayer());
+	plugin.getChatListener().unSetPlayer(event.getPlayer().getUniqueId());
 	// CoopPlay.getInstance().returnAllInventories(event.getPlayer());
 	// plugin.setMessage(event.getPlayer().getUniqueId(),
 	// "Hello! This is a test. You logged out");

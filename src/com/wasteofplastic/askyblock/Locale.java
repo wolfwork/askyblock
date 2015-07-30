@@ -373,7 +373,7 @@ public class Locale {
     public String banNotBanned;
     public String banAlreadyBanned;
     public String banLiftedSuccess;
-    
+
     // Mob limits
     public String moblimitsError;
 
@@ -440,6 +440,9 @@ public class Locale {
     public String igsGate;
     public String igsHurtAnimals;
     public String igsHurtMobs;
+    public String igsCreeperDamage;
+    public String igsCreeperGriefing;
+    public String igsWitherDamage;
     public String igsLeash;
     public String igsLever;
     public String igsSpawnEgg;
@@ -461,6 +464,96 @@ public class Locale {
     public String islandhelpBan;
     public String islandhelpUnban;
     public String banNotTeamMember;
+    public String teamChatPrefix;
+    public String teamChatHelp;
+    public String teamChatStatusOff;
+    public String teamChatStatusOn;
+    public String teamChatNoTeamAround;
+    public String teamChatNoTeam;
+    public String warpsPrevious;
+    public String warpsNext;
+    public String warpsTitle;
+    public String villagerLimitError;
+    public String hopperLimit;
+    public String adminHelpsetBiome;
+    public String adminHelptopBreeders;
+    public String adminHelplock;
+    public String adminHelpkick;
+    public String adminHelpadd;
+    public String adminHelptpNether;
+    public String adminLockerrorInGame;
+    public String errorNotOnIsland;
+    public String adminLockadminUnlockedIsland;
+    public String adminLockadminLockedIsland;
+    public String adminTopBreedersFinding;
+    public String adminTopBreedersChecking;
+    public String adminDeleteIslandError;
+    public String errorUseInGame;
+    public String adminSetSpawnsetting;
+    public String adminSetSpawncenter;
+    public String adminSetSpawnlimits;
+    public String adminSetSpawnrange;
+    public String adminSetSpawncoords;
+    public String adminSetSpawnlocked;
+    public String adminSetSpawnset;
+    public String adminSetSpawnownedBy;
+    public String adminSetSpawnmove;
+    public String adminInfotitle;
+    public String adminInfounowned;
+    public String adminDeleteIslandnoid;
+    public String adminDeleteIslanduse;
+    public String adminHelpResetHome;
+    public String adminHelpSetHome;
+    public String adminSetHomeNoneFound;
+    public String adminSetHomeHomeSet;
+    public String adminSetHomeNotOnPlayersIsland;
+    public String adminHelpResetSign;
+    public String adminResetSignNoSign;
+    public String adminResetSignFound;
+    public String adminResetSignRescued;
+    public String adminResetSignErrorExists;
+    public String adminSetRangeInvalid;
+    public String adminSetRangeTip;
+    public String adminSetRangeSet;
+    public String adminSetRangeWarning;
+    public String adminSetRangeWarning2;
+    public String adminTpManualWarp;
+    public String adminUnregisterOnTeam;
+    public String adminUnregisterKeepBlocks;
+    public String adminInfoPlayer;
+    public String adminInfoLastLogin;
+    public String adminInfoTeamLeader;
+    public String adminInfoTeamMembers;
+    public String adminInfoIsSpawn;
+    public String adminInfoIsLocked;
+    public String adminInfoIsUnlocked;
+    public String adminInfoIsProtected;
+    public String adminInfoIsUnprotected;
+    public String adminInfoBannedPlayers;
+    public String adminInfoHoppers;
+    public String adminTeamKickLeader;
+    public String adminTeamAddLeaderToOwn;
+    public String adminTeamAddLeaderNoIsland;
+    public String adminTeamAddedLeader;
+    public String adminTeamNowUnowned;
+    public String adminTeamSettingHome;
+    public String adminTeamAddingPlayer;
+    public String adminTeamAlreadyOnTeam;
+    public String purgeRemovingAt;
+    public String purgeNowWaiting;
+    public String purgeCountingUnowned;
+    public String purgeStillChecking;
+    public String purgeSkyBlockFound;
+    public String purgeAcidFound;
+    public String adminRegisterNotSpawn;
+    public String adminRegisterLeadsTeam;
+    public String adminRegisterTaking;
+    public String adminRegisterHadIsland;
+    public String adminRegisterNoIsland;
+    public String adminTopBreedersNothing;
+    public String adminHelpTeamChatSpy;
+    public String coopNotInCoop;
+    public String islandhelpUnCoop;
 
     /**
      * Creates a locale object full of localized strings for a language
@@ -543,10 +636,10 @@ public class Locale {
 
 	} else {
 	    // AcidIsland
-	    signLine1 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign.line1", "&1[Acid Island]"));
-	    signLine2 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign.line2", "[player]"));
-	    signLine3 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign.line3", "Water is acid!"));
-	    signLine4 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign.line4", "Beware!"));
+	    signLine1 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign-acidisland.line1", "&1[Acid Island]"));
+	    signLine2 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign-acidisland.line2", "[player]"));
+	    signLine3 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign-acidisland.line3", "Water is acid!"));
+	    signLine4 = ChatColor.translateAlternateColorCodes('&', locale.getString("sign-acidisland.line4", "Beware!"));
 	    islandhelpSpawn = ChatColor.translateAlternateColorCodes('&', locale.getString("island.helpIslandSpawn", "go to AcidIsland spawn."));
 	    newsHeadline = ChatColor.translateAlternateColorCodes('&', locale.getString("news.headline", "[AcidIsland News] While you were offline..."));
 
@@ -597,6 +690,9 @@ public class Locale {
 	igsGate = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.gate", "Gate use"));
 	igsHurtAnimals = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.hurtanimals", "Hurting animals"));
 	igsHurtMobs = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.hurtmonsters", "Hurting monsters"));
+	igsCreeperDamage = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.creeperdamage", "Creeper damage"));
+	igsCreeperGriefing = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.creepergriefing", "Creeper griefing"));
+	igsWitherDamage = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.withergriefing", "Wither griefing"));
 	igsLeash = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.leash", "Leash use"));
 	igsLever = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.lever", "Lever or Button Use"));
 	igsSpawnEgg = ChatColor.translateAlternateColorCodes('&', locale.getString("islandguardsettings.spawnegg", "Spawn egg use"));
@@ -634,11 +730,14 @@ public class Locale {
 	warpserrorNotSafe = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("warps.errorNotSafe", "That warp is not safe right now. Try again later."));
 	warpswarpToPlayersSign = ChatColor.translateAlternateColorCodes('&',
-		locale.getString("warps.warpToPlayersSign", "Warp to <player>'s welcome sign."));
+		locale.getString("warps.warpToPlayersSign", "Warping to <player>'s welcome sign."));
 	warpserrorNoWarpsYet = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("warps.errorNoWarpsYet", "There are no warps available yet!"));
 	warpswarpsAvailable = ChatColor.translateAlternateColorCodes('&', locale.getString("warps.warpsAvailable", "The following warps are available"));
 	warpsPlayerWarped = ChatColor.translateAlternateColorCodes('&', locale.getString("warps.playerWarped", "[name] &2warped to your island!"));
+	warpsPrevious = ChatColor.translateAlternateColorCodes('&', locale.getString("warps.previous", "Previous"));
+	warpsNext = ChatColor.translateAlternateColorCodes('&', locale.getString("warps.next", "Next"));
+	warpsTitle = ChatColor.translateAlternateColorCodes('&', locale.getString("warps.title", "Island warps"));
 	topTenheader = ChatColor.translateAlternateColorCodes('&', locale.getString("topTen.header", "These are the Top 10 islands:"));
 	topTenerrorNotReady = ChatColor.translateAlternateColorCodes('&', locale.getString("topTen.errorNotReady", "Top ten list not generated yet!"));
 	levelislandLevel = ChatColor.translateAlternateColorCodes('&', locale.getString("level.islandLevel", "Island level"));
@@ -861,7 +960,7 @@ public class Locale {
 		.translateAlternateColorCodes('&', locale.getString("adminHelp.register", "set a player's island to your location"));
 	adminHelpunregister = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("adminHelp.unregister", "deletes a player without deleting the island blocks"));
-	adminHelpdelete = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.delete", "delete an island (removes blocks)."));
+	adminHelpdelete = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.delete", "delete an island (removes blocks)"));
 	adminHelpcompleteChallenge = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("adminHelp.completeChallenge", "marks a challenge as complete"));
 	adminHelpresetChallenge = ChatColor.translateAlternateColorCodes('&',
@@ -874,15 +973,29 @@ public class Locale {
 		locale.getString("adminHelp.purgeallowdisallow", "allow/disallow island to be purged if it meets purge criteria"));
 	adminHelppurgeUnowned = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("adminHelp.purgeunowned", "remove unowned islands"));
-	adminHelppurgeholes = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.purgeholes", "free up island holes for reuse."));
-	adminHelpinfo = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.info", "check information on the given player."));
+	adminHelppurgeholes = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.purgeholes", "free up island holes for reuse"));
+	adminHelpinfo = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.info", "check information on the given player"));
 	adminHelpSetSpawn = ChatColor.translateAlternateColorCodes('&',
-		locale.getString("adminHelp.setspawn", "sets the island world spawn to a location close to you."));
+		locale.getString("adminHelp.setspawn", "sets the island world spawn to a location close to you"));
 	adminHelpSetRange = ChatColor
-		.translateAlternateColorCodes('&', locale.getString("adminHelp.setrange", "changes the island's protection range."));
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.setrange", "changes the island's protection range"));
+	adminHelpsetBiome = ChatColor
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.setbiome", "sets leader's island biome"));
+	adminHelptopBreeders = ChatColor
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.topbreeders", "lists most populated islands currently loaded"));
+	adminHelplock = ChatColor
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.lock", "locks/unlocks player's island"));
+	adminHelpkick = ChatColor
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.kick", "removes player from any team"));
+	adminHelpadd = ChatColor
+		.translateAlternateColorCodes('&', locale.getString("adminHelp.add", "adds player to leader's team"));
+
+
+
 	adminHelpinfoIsland = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("adminHelp.infoisland", "provide info on the nearest island."));
 	adminHelptp = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.tp", "Teleport to a player's island."));
+	adminHelptpNether = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.tpnether", "Teleport to a player's nether island."));
 	reloadconfigReloaded = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("reload.configReloaded", "Configuration reloaded from file."));
 	adminTopTengenerating = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTopTen.generating", "Generating the Top Ten list"));
@@ -895,7 +1008,7 @@ public class Locale {
 		locale.getString("purge.calculating", "Calculating which islands have been inactive for more than [time] days."));
 	purgenoneFound = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.noneFound", "No inactive islands to remove."));
 	purgethisWillRemove = ChatColor.translateAlternateColorCodes('&',
-		locale.getString("purge.thisWillRemove", "This will remove [number] inactive islands!"));
+		locale.getString("purge.thisWillRemove", "[number] inactive islands found. Islands with level < [level] will be removed."));
 	purgewarning = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("purge.warning", "DANGER! Do not run this with players on the server! MAKE BACKUP OF WORLD!"));
 	purgetypeConfirm = ChatColor.translateAlternateColorCodes('&',
@@ -903,6 +1016,12 @@ public class Locale {
 	purgepurgeCancelled = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.purgeCancelled", "Purge cancelled."));
 	purgefinished = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.finished", "Finished purging of inactive islands."));
 	purgeremovingName = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.removingName", "Purge: Removing [name]'s island"));
+	purgeRemovingAt = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.removingAt", "Removing island at location [location]"));
+	purgeNowWaiting = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.nowWaiting", "Now waiting..."));
+	purgeCountingUnowned = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.countingUnowned", "Counting unowned islands and checking player files. This could take some time..."));
+	purgeStillChecking = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.stillChecking", "Still checking player files..."));
+	purgeSkyBlockFound = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.skyblockFound", "There are [number] unowned islands. Do '/asadmin purge unowned confirm' to delete them within 20 seconds."));
+	purgeAcidFound = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.acidFound", "There are [number] unowned islands. Do '/acid purge unowned confirm' to delete them within 20 seconds."));
 	adminAllowPurge = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.preventName", "Purge protection removed"));
 	adminPreventPurge = ChatColor.translateAlternateColorCodes('&', locale.getString("purge.allowName", "Island is protected from purging"));
 	confirmerrorTimeLimitExpired = ChatColor.translateAlternateColorCodes('&',
@@ -973,7 +1092,7 @@ public class Locale {
 	boatWarningItIsUnsafe = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("boats.warning", "It's unsafe to exit the boat right now..."));
 	adminHelpclearReset = ChatColor.translateAlternateColorCodes('&',
-		locale.getString("general.clearreset", "resets the island reset limit for player."));
+		locale.getString("adminHelp.clearreset", "resets the island reset limit for player."));
 	resetYouHave = ChatColor.translateAlternateColorCodes('&', locale.getString("island.resetYouHave", "You have [number] resets left."));
 	islandResetNoMore = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("island.resetNoMore", "No more resets are allowed for your island!"));
@@ -999,7 +1118,9 @@ public class Locale {
 	banNotTeamMember = ChatColor.translateAlternateColorCodes('&', locale.getString("ban.notteammember", "You cannot ban a team member!"));
 	banNotBanned = ChatColor.translateAlternateColorCodes('&', locale.getString("ban.notbanned", "[name] is not banned!"));
 	banAlreadyBanned = ChatColor.translateAlternateColorCodes('&', locale.getString("ban.alreadybanned", "[name] is already banned!"));
-	moblimitsError = ChatColor.translateAlternateColorCodes('&', locale.getString("moblimits.error", "Island breeding limit of [number] reached!"));
+	moblimitsError = ChatColor.translateAlternateColorCodes('&', locale.getString("moblimits.error", "Island animal breeding limit of [number] reached!"));
+	villagerLimitError = ChatColor.translateAlternateColorCodes('&', locale.getString("moblimits.villager", "Island villager breeding limit of [number] reached!"));
+	hopperLimit = ChatColor.translateAlternateColorCodes('&', locale.getString("moblimits.hopper", "Island hopper limit of [number] reached!"));
 	coopRemoved = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.removed", "[name] remove your coop status!"));
 	coopRemoveSuccess = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.removesuccess", "[name] is no longer a coop player."));
 	coopSuccess = ChatColor.translateAlternateColorCodes('&',
@@ -1007,8 +1128,9 @@ public class Locale {
 	coopMadeYouCoop = ChatColor.translateAlternateColorCodes('&',
 		locale.getString("coop.madeyoucoopy", "[name] made you a coop player until you log out or they expel you."));
 	coopOnYourTeam = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.onyourteam", "Player is already on your team!"));
-	islandhelpCoop = ChatColor.translateAlternateColorCodes('&',
-		locale.getString("coop.help", "temporarily give a player full access to your island"));
+	coopNotInCoop = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.notincoop", "[name] is not in your coop!"));
+	islandhelpCoop = ChatColor.translateAlternateColorCodes('&',locale.getString("coop.help", "temporarily give a player full access to your island"));
+	islandhelpUnCoop = ChatColor.translateAlternateColorCodes('&',locale.getString("coop.uncoop", "remove full island access from player"));
 	coopInvited = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.invited", "[name] made [player] a coop player!"));
 	coopUseExpel = ChatColor.translateAlternateColorCodes('&', locale.getString("coop.useexpel", "Use expel to remove."));
 	lockIslandLocked = ChatColor.translateAlternateColorCodes('&', locale.getString("lock.islandlocked", "Island is locked to visitors"));
@@ -1023,5 +1145,76 @@ public class Locale {
 	lockEnteringSpawn = ChatColor.translateAlternateColorCodes('&', locale.getString("lock.enteringspawn", "Entering Spawn"));
 	lockLeavingSpawn = ChatColor.translateAlternateColorCodes('&', locale.getString("lock.leavingspawn", "Leaving Spawn"));
 	schematicsTitle = ChatColor.translateAlternateColorCodes('&', locale.getString("schematics.title", "Choose island..."));
+	teamChatPrefix = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.prefix", "[Team Chat]<{ISLAND_PLAYER}> "));
+	teamChatHelp = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.helpChat", "turn on/off team chat"));
+	teamChatStatusOff = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.statusOff", "Team chat is off"));
+	teamChatStatusOn = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.statusOn", "Team chat is on"));
+	teamChatNoTeamAround = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.noTeamAround", "None of your team are online!"));
+	teamChatNoTeam = ChatColor.translateAlternateColorCodes('&', locale.getString("teamchat.noTeam", "You are not in a team!"));
+	adminLockerrorInGame = ChatColor.translateAlternateColorCodes('&', locale.getString("adminLock.errorInGame", "Must use command in-game while on an island!"));
+	errorNotOnIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("error.notonisland", "You are not in an island space!"));
+	adminLockadminUnlockedIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminLock.adminUnlockedIsland", "Admin unlocked your island"));
+	adminLockadminLockedIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminLock.adminLockedIsland", "Admin locked your island"));
+	adminTopBreedersFinding = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTopBreeders.finding", "Finding top breeders..."));
+	adminTopBreedersChecking = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTopBreeders.checking", "Checking [number] islands..."));
+	adminTopBreedersNothing = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTopBreeders.nothing", "No creatures found."));
+	adminDeleteIslandError = ChatColor.translateAlternateColorCodes('&', locale.getString("adminDeleteIsland.error", "Use &ldeleteisland confirm &r&cto delete the island you are on."));
+	adminDeleteIslandnoid = ChatColor.translateAlternateColorCodes('&', locale.getString("adminDeleteIsland.noid", "Cannot identify island."));
+	adminDeleteIslanduse = ChatColor.translateAlternateColorCodes('&', locale.getString("adminDeleteIsland.use", "Use &ldelete [name] &r&cto delete the player instead."));
+	errorUseInGame = ChatColor.translateAlternateColorCodes('&', locale.getString("error.useInGame", "This command must be used in-game."));
+	adminSetSpawnsetting = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.setting", "Setting island spawn to your location [location]"));
+	adminSetSpawncenter = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.center", "Spawn island center [location]"));
+	adminSetSpawnlimits = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.limits", "Spawn island limits [min] to [max]"));
+	adminSetSpawnrange = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.range", "Spawn protection range = [number]"));
+	adminSetSpawncoords = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.coords", "Spawn protection coords [min] to [max]"));
+	adminSetSpawnlocked = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.locked", "Spawn is locked!"));
+	adminSetSpawnset = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.set", "Set island spawn to your location."));
+	adminSetSpawnownedBy = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.ownedBy", "This island space is owned by [name]"));
+	adminSetSpawnmove = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetSpawn.move", "Move further away or unregister the owner."));
+	adminInfotitle = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.title", "This is spawn island"));
+	adminInfounowned = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.unowned", "This island is not owned by anyone right now."));
+	adminHelpResetHome = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.resethome", "Clears all home spots for player"));
+	adminHelpSetHome = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.resethome", "Sets player's home to your position"));
+	adminSetHomeNoneFound = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetHome.noneFound", "No safe location found!"));
+	adminSetHomeHomeSet = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetHome.homeSet", "Home set to [location]"));
+	adminSetHomeNotOnPlayersIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetHome.notOnPlayersIsland", "You are not on the player's island"));
+	adminHelpResetSign = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.resetSign", "Resets the sign you are looking at to the island owner"));
+	adminResetSignNoSign = ChatColor.translateAlternateColorCodes('&', locale.getString("adminResetSign.noSign", "You must be looking at a sign post to run this command."));
+	adminResetSignFound = ChatColor.translateAlternateColorCodes('&', locale.getString("adminResetSign.found", "Warp Sign found!"));
+	adminResetSignRescued = ChatColor.translateAlternateColorCodes('&', locale.getString("adminResetSign.rescued", "Warp sign rescued and assigned to [name]"));
+	adminResetSignErrorExists = ChatColor.translateAlternateColorCodes('&', locale.getString("adminResetSign.errorExists", "That warp sign is already active and owned by [name]"));
+	adminSetRangeInvalid = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetRange.invalid", "Invalid range!"));
+	adminSetRangeTip = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetRange.tip", "Use 10 to [max]"));
+	adminSetRangeSet = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetRange.set", "Set range to [number]"));
+	adminSetRangeWarning = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetRange.warning", "Warning - range is greater than island range [max]"));
+	adminSetRangeWarning2 = ChatColor.translateAlternateColorCodes('&', locale.getString("adminSetRange.warning2", "Overlapped islands will act like spawn!"));
+	adminTpManualWarp = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTp.manualWarp", "No safe spot found. Manually warp to somewhere near [location]."));
+	adminUnregisterOnTeam = ChatColor.translateAlternateColorCodes('&', locale.getString("adminUnregsiter.onTeam", "Player is in a team - disband it first."));
+	adminUnregisterKeepBlocks = ChatColor.translateAlternateColorCodes('&', locale.getString("adminUnregsiter.KeepBlocks", "Removing player from world, but keeping island at [location]"));
+	adminInfoPlayer = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.player","Player"));
+	adminInfoLastLogin = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.lastLogin","Last Login"));
+	adminInfoTeamLeader = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.teamLeader","Team Leader"));
+	adminInfoTeamMembers = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.teamMembers","Team Members"));
+	adminInfoIsSpawn = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.isSpawn","Island is spawn"));
+	adminInfoIsLocked = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.isLocked","Island is locked"));
+	adminInfoIsUnlocked = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.isUnlocked","Island is unlocked"));
+	adminInfoIsProtected = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.isProtected","Island is purge protected"));
+	adminInfoIsUnprotected = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.isUnprotected","Island is not purge protected"));
+	adminInfoBannedPlayers = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.bannedPlayers", "Banned players"));
+	adminInfoHoppers = ChatColor.translateAlternateColorCodes('&', locale.getString("adminInfo.hoppers", "Island has [number] hoppers"));
+	adminTeamKickLeader = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.kickLeader", "That player is a team leader. Remove team members first. Use '/[label] info [name]' to find team members."));
+	adminTeamAddLeaderToOwn = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.addLeaderToOwn", "Cannot add a leader to their own team."));
+	adminTeamAddLeaderNoIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.addLeaderNoIsland", "Team leader does not have their own island so cannot have a team!"));
+	adminTeamAddedLeader = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.addedLeader", "Added the leader to this team!"));
+	adminTeamNowUnowned = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.nowUnowned", "[name] had an island at [location] that will become unowned now. You may want to delete it manually." ));
+	adminTeamSettingHome = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.settingHome", "Setting player's home to the leader's home location"));
+	adminTeamAddingPlayer = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.addingPlayer", "Adding player to team."));
+	adminTeamAlreadyOnTeam = ChatColor.translateAlternateColorCodes('&', locale.getString("adminTeam.alreadyOnTeam", "Player was already on this team!"));
+	adminRegisterNotSpawn = ChatColor.translateAlternateColorCodes('&', locale.getString("adminRegister.notSpawn", "You cannot take ownership of spawn!"));
+	adminRegisterLeadsTeam = ChatColor.translateAlternateColorCodes('&', locale.getString("adminRegister.leadsTeam", "[name] leads a team. Kick players from it first."));
+	adminRegisterTaking = ChatColor.translateAlternateColorCodes('&', locale.getString("adminRegister.taking", "Taking ownership away from [name]"));
+	adminRegisterHadIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminRegister.hadIsland", "[name] had an island at [location]"));
+	adminRegisterNoIsland = ChatColor.translateAlternateColorCodes('&', locale.getString("adminRegister.noIsland", "There is no known island in this area!"));
+	adminHelpTeamChatSpy = ChatColor.translateAlternateColorCodes('&', locale.getString("adminHelp.teamChatSpy", "Spy on team chats (on/off)"));
     }
 }

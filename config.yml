@@ -1,14 +1,13 @@
 #############################################################################
-# Config for A SkyBlock (also playable as AcidIsland)
-# For initial set up you must configure or check at least these settings:
+# Config for ASkyblock
+# It is recommended that you check at least these settings:
 #
-# 1. distance (in the island section) - the distance between islands
-# 2. resetmoney - set to true so that everyone starts with nothing
-# 3. islandLevel - the height you want your islands to float
-# 4. protectionRange - big a player's island is at the start
+# 1. island distance - the distance between islands. If upgrading set to what you had.
+# 2. resetmoney (general section) - set to true so that everyone starts with nothing
+# 3. islandLevel (general section) - the height you want your islands to float
+# 4. protectionRange - how big a player's island is at the start
 #
-# The plugin will NOT start until #1 is set!!!
-#############################################################################
+##############################################################################
 
 ##### Island Related Settings #####
 
@@ -21,12 +20,11 @@ island:
    # 50 - minimum - not recommended
    # IF YOU ARE UPGRADING YOU MUST USE YOUR OLD VALUE EXACTLY, E.G., 110
    # OR RESET YOUR WORLD
-   # You MUST set this value to start the plugin!
    # Value must be an even number
 
-   distance: -1
+   distance: 200
 
-   # Default protection range (even number). Min = 50, Recommended = 100
+   # Default protection range (even number). Min = 0, Recommended = 100
    # Value must be at least 16 blocks less than the island distance unless you set
    # overridelimit: true below.
    # Use this permission to set for different groups: askyblock.island.range.<number>
@@ -125,6 +123,8 @@ island:
    endermandeathdrop: true
    # Allow creeper explosion damage to block (explosion still hurts)
    allowcreeperdamage: true
+   # Allow visitors to use creeper explosions to grief islands
+   allowcreepergriefing: false 
    # Allow TNT damage to blocks (stops players using TNT to destroy other's islands)
    allowtntdamage: false
    # Allow spawn egg use
@@ -133,6 +133,8 @@ island:
    allowbreeding: false
    # Allow use of Flint & Steel by visitors
    allowfire: false
+   # Allow fire spread (global - not just for visitors)
+   allowfirespread: false
    # Allow chests to be blown up by creepers or TNT
    allowchestdamage: false
    # Allow leash use
@@ -189,9 +191,8 @@ general:
    # portal will return them back to their islands.
    createnether: true
 
-   # Try new island-style nether. Change to true
-   # Still in Beta!
-   newnether: false
+   # New island-style nether. Change to false for standard nether
+   newnether: true
    # Nether trees are made if a player grows a tree in the new nether (gravel and glowstone)
    nethertrees: true  
 
@@ -206,8 +207,17 @@ general:
    #by repetitively being invited to a team island.
    invitewait: 60
 
+   # Use new level calculation (super speedy). Set to false if you want the old
+   # method (slower).
+   fastlevelcalc: true
+   
    # Island level calculation cool down in seconds
    levelwait: 60
+
+   # Calculate level on login
+   # If true, the plugin will run the level command for the player when they login
+   # If the command is busy, it will fail silently
+   loginlevel: false
 
    #How many resets a player is allowed (override with /asadmin clearreset <player>
    #Value of -1 means unlimited, 0 means hardcore - no resets.
@@ -225,6 +235,17 @@ general:
    # the console if the commands doesn't make sense
    leavecommands:
    #- kit tools [player]
+   #- some other command
+
+   # Commands to execute when a player starts a new island for the first time - NOT a reset
+   startcommands:
+   #- asadmin lock [player]
+   #- some other command
+
+   # Visitor banned commands: Visitors to islands cannot use these commands
+   visitorbannedcommands:
+   - spawner
+   - spawnmob
 
    # Ops receive damage from acid (Set to true if you want Ops to play properly)
    damageops: false
@@ -256,32 +277,49 @@ general:
    # Remove mobs when logging in
    loginremovemobs: true
 
-   # Remove mobs when /island
+   # Remove mobs when /island.
    islandremovemobs: false
+   
+   # Mob white list - these mobs will NOT be removed when logging in or doing /island
+   # Options are: Blaze, Cave_Spider, Creeper, Enderman, Endermite, Giant, Guardian,
+   # Pig_Zombie, Silverfish, Skeleton, Spider, Witch, Wither, Zombie
+   mobwhitelist:
+   - Wither
+   - Enderman
+   - Pig_Zombie
 
    # Sets the limit for number of monsters that can spawn in a chunk in this world. 
+   # Note: this does not limit the number of monsters, just how many spawn naturally.
    # Note: If set to a negative number the world will use the server-wide spawn limit instead.
    # Max is 100
    monsterspawnlimit: 70
-
-   #[integer] Sets the limit for number of animals that can spawn in a chunk in this world. 
+   
+   # Sets the limit for number of animals that can spawn in a chunk in this world. 
    # Note: If set to a negative number the world will use the server-wide spawn limit instead.
    # Max is 100
    animalspawnlimit: 15
-
-   # Breeding limits - if this is set to more than 0, then players will not be able
+   
+   # Animal breeding limits - if this is set to more than 0, then players will not be able
    # to breed more animals than that number on their island. A value of zero means no
    # limit. Note that animals will not be killed or reduced to this limit.
-   # This WILL affect mobspawn blocks AND monster egg use. Note that hearts will
+   # This WILL affect mobspawn blocks AND spawn egg use. Note that hearts will
    # still appear, but breeding will not happen.
    breedinglimit: 0
 
-   #[integer] Sets the limit for number of water animals [squid] that can spawn in a chunk in this world. 
+   # Villager limit - this is per team player, so an island of 4 will have 4x this number
+   # Note that 10 villagers minimum are required to create an iron farm. Zero is unlimited.
+   villagerlimit: 0
+   
+   # Hopper limit - max number of island hoppers. If exceeded, players will not be able
+   # to place a hopper block. Zero is unlimited. Excessive hoppers can add to lag.
+   hopperlimit: 0
+
+   # Sets the limit for number of water animals [squid] that can spawn in a chunk in this world. 
    # Note: If set to a negative number the world will use the server-wide spawn limit instead.
    # Max is 100
    wateranimalspawnlimit: 15
 
-   #[integer] Island below this level will be removed if they are abandoned and admins issue the purge command
+   # Islands below this level will be removed if they are abandoned and admins issue the purge command
    abandonedislandlevel: 10
 
 
@@ -314,7 +352,7 @@ general:
 
    # Reset Ender Chest - if true, the player's Ender Chest will be cleared when they
    # start or restart their island. Default is false.
-   # NOTE: Ender Chests spawn worlds, so it will clear ALL chests. In general,
+   # NOTE: Ender Chests span worlds, so it will clear ALL chests. In general,
    # Enderchests should not be allowed in ASkyblock unless you only run the ASkyblock
    # world. Ender Chest crafting and use is governed by the askyblock.craft.enderchest
    # permission.
@@ -351,11 +389,6 @@ general:
    # Set schematic-specific options in the schematicsection
    usephysics: false
    
-   # Calculate level on login
-   # If true, the plugin will run the level command for the player when they login
-   # If the command is busy, it will fail silently
-   loginlevel: false
-
    # Default maximum number of homes a player can have. Min = 1
    # Accessed via sethome <number> or go <number>
    # Use this permission to set for specific user groups: askyblock.island.maxhomes.<number>  
@@ -368,20 +401,32 @@ general:
    # entering the world
    immediateteleport: false
 
-   # Set TEAMSUFFIX variable to player's island level
-   # If true, this will set the server TEAMNAME variable to the player's name and
-   # TEAMSUFFIX to the player's island level.
-   # Use in chat. e.g., for essentials chat, the format could be:
-   #   format: '<{DISPLAYNAME}> (Level {TEAMSUFFIX}): {MESSAGE}'
-   # <tastybento> (Level: 223): hi there
-   # If you have other plugins that use scoreboards/teams, this may mess with them
-   setteamsuffix: false
-   # What you want the suffix to be. [level] is substituted for the player's level
-   teamsuffix: "([level])"
-   
    # Have player's respawn on their island if they die
    respawnonisland: false
 
+   # Team Chat
+   # This enables player to set is so their chat goes to their team mates only
+   # using the /island teamchat command.
+   # The prefix [Team Chat] that goes in front of team chats is in the locale files
+   teamchat: true
+
+   # Use the variable "{ISLAND_LEVEL}" in chat prefixes in other plugins and it will
+   # be replaced by the player's island level.
+   # Confirmed to work with Essentials Chat, Multiverse Core and Herochat.
+   
+   # Restrict Wither
+   # This allows the Wither to only damage the island where it is spawned.
+   # Damage to any islands or players will not occur.
+   # This prevents griefing-by-wither. 
+   restrictwither: true
+   
+   # Warp panel - GUI for welcome warp signs. If set to false, old-style
+   # text will be used
+   usewarppanel: true
+   
+   # Mute death messages
+   mutedeathmessages: false
+   
    # Config.yml version. DO NOT EDIT. This number only changes if the latest
    # plugin config has been updated. If a new config is detected, it will be
    # auto-saved to config.new.yml.
@@ -414,6 +459,10 @@ spawn:
   alloweggs: false
   # The following stops water above sea level from being acid at spawn if acid is active
   allowspawnnoacidwater: false
+  allowPVP: false
+  allowmilking: false
+  allowlavacollection: false
+  allowwatercollection: false
 
 # This section contains the biomes that can be bought or used
 biomesettings:
@@ -501,6 +550,12 @@ schematicsection:
    # not used.
   useschematicspanel: true
 
+   # Random island, only apply when useschematicspanel is false - if set to false
+   # the plugin will choose the first island it found with the user permissions
+   # to generate a new island. If set to true, the plugin will generate an island
+   # randomly from the list of all islands available to the player.
+  chooseislandrandomly: false
+
   # This section lists all the schematics available
   # You can add or remove from this list. If this section is missing, only the default
   # island works.
@@ -509,6 +564,8 @@ schematicsection:
     default:
       # Icon - if this is missing or wrong, it will be a MAP
       icon: DIRT
+      # Order of preference in listing
+      order: 1
       # Short name - color codes with & okay
       name: "The Original"
       # Longer description. Use | for new lines. Color codes okay.
@@ -544,6 +601,7 @@ schematicsection:
     island1:
       # Credit to Antal1609 for this schematic!
       icon: RED_ROSE
+      order: 2
       name: "Island Duo"
       description: "Two close islands!|Double the fun,|but a little easier.|&a[Credit] Antal1609"
       filename: double.schematic
@@ -560,18 +618,19 @@ schematicsection:
       # Options are: COW, PIG, SHEEP, CHICKEN, VILLAGER, HORSE, IRON_GOLEM, OCELOT,
       # RABBIT, WOLF or NOTHING. Default is COW.
       companion:
-      - RABBIT 
+      - CHICKEN 
       # This is a list of names, picked at random that will apply to the companion
       # You can add more if you like. If none are listed, the companion will not be
       # named.
       companionnames:
-      - "&9[player]'s rabbit"
-      - "&cFluffy"
+      - "&9[player]'s chicken"
+      - "&dFree-Range Eggs"
       partnerSchematic: nether
       #permission: any.perm.you.like
     # New snowy schematic
     extrahard:
       icon: OBSIDIAN
+      order: 3
       # Ski theme - a black diamond run is hard.
       name: "&lBlack &bDiamonds"
       description: "Experts only!|&aMinimal resources|&awith a few diamonds."
