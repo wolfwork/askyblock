@@ -68,7 +68,6 @@ import org.jnbt.ShortTag;
 import org.jnbt.StringTag;
 import org.jnbt.Tag;
 
-import com.sk89q.worldedit.data.DataException;
 import com.wasteofplastic.askyblock.ASkyBlock;
 import com.wasteofplastic.askyblock.Settings;
 import com.wasteofplastic.askyblock.Settings.GameType;
@@ -98,7 +97,7 @@ public class Schematic {
     private boolean visible;
     private int order;
     // These hashmaps enable translation between WorldEdit strings and Bukkit names
-    private HashMap<String, EntityType> WEtoME = new HashMap<String, EntityType>();
+    //private HashMap<String, EntityType> WEtoME = new HashMap<String, EntityType>();
     private List<EntityType> islandCompanion;
     private List<String> companionNames;
     private ItemStack[] defaultChestItems;
@@ -209,12 +208,13 @@ public class Schematic {
 	}
 
 	// Entities
+	/*
 	WEtoME.put("LAVASLIME", EntityType.MAGMA_CUBE);
 	WEtoME.put("ENTITYHORSE", EntityType.HORSE);
 	WEtoME.put("OZELOT", EntityType.OCELOT);
 	WEtoME.put("MUSHROOMCOW", EntityType.MUSHROOM_COW);
 	WEtoME.put("PIGZOMBIE", EntityType.PIG_ZOMBIE);
-
+	 */
 	this.file = file;
 	// Try to load the file
 	try { 
@@ -299,16 +299,16 @@ public class Schematic {
 		    //Bukkit.getLogger().info("++++++++++++++++++++++++++++++++++++++++++++++++++");
 		    if (entry.getKey().equals("id")) {
 			String id = ((StringTag)entry.getValue()).getValue().toUpperCase();
-			//Bukkit.getLogger().info("ID is " + id);
-			if (WEtoME.containsKey(id)) {
-			    ent.setType(WEtoME.get(id));
-			} else {
+			//Bukkit.getLogger().info("DEBUG: ID is '" + id + "'");
+			if (IslandBlock.WEtoME.containsKey(id)) {
+			    //Bukkit.getLogger().info("DEBUG: id found");
+			    ent.setType(IslandBlock.WEtoME.get(id));
+			} else if (!id.equalsIgnoreCase("ITEM")){
+			    //Bukkit.getLogger().info("DEBUG: id not found");
 			    try {
 				ent.setType(EntityType.valueOf(id));
 			    } catch (Exception ex) {
-				if (!id.equalsIgnoreCase("ITEM")) {
-				    Bukkit.getLogger().warning("MobType " + id + " unknown, skipping");
-				}
+				plugin.getLogger().warning("MobType " + id + " unknown, skipping");
 			    }
 			}
 		    }
@@ -618,7 +618,7 @@ public class Schematic {
      * @param loc
      * @param player
      */
-    public void pasteSchematic(final Location loc, final Player player) {
+    public void pasteSchematic(final Location loc, final Player player, boolean teleport) {
 	// If this is not a file schematic, paste the default island
 	if (this.file == null) {
 	    if (Settings.GAMETYPE == GameType.ACIDISLAND) {
@@ -766,7 +766,17 @@ public class Schematic {
 		}
 	    }
 	}
-	plugin.getGrid().homeTeleport(player);
+	if (teleport) {
+	    player.teleport(world.getSpawnLocation());
+	    plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+
+		@Override
+		public void run() {
+		    plugin.getGrid().homeTeleport(player);
+		    
+		}}, 10L);
+	   
+	}
 	if (!islandCompanion.isEmpty() && grass != null) {
 	    Bukkit.getServer().getScheduler().runTaskLater(ASkyBlock.getPlugin(), new Runnable() {
 		@Override
@@ -824,14 +834,11 @@ public class Schematic {
 				// Monster spawner blocks
 				if (block.getTypeId() == Material.MOB_SPAWNER.getId()) {
 				    block.setSpawnerType(tileEntitiesMap.get(new BlockVector(x, y, z)));
-				}
-				// Signs
-				if ((block.getTypeId() == Material.SIGN_POST.getId())) {
+				} else if ((block.getTypeId() == Material.SIGN_POST.getId())) {
 				    block.setSign(tileEntitiesMap.get(new BlockVector(x, y, z)));
-				}
-				if (block.getTypeId() == Material.CHEST.getId()) {
-				    block.setChest(tileEntitiesMap.get(new BlockVector(x, y, z)));
-				}
+				} else if (block.getTypeId() == Material.CHEST.getId()) {
+				    block.setChest(nms, tileEntitiesMap.get(new BlockVector(x, y, z)));
+				}   
 			    }
 			    islandBlocks.add(block);
 			}
@@ -869,7 +876,7 @@ public class Schematic {
 		}
 	    }
 	}
-	plugin.getLogger().info("DEBUG: islandBlocks size = " + islandBlocks.size());
+	//plugin.getLogger().info("DEBUG: islandBlocks size = " + islandBlocks.size());
     }
 
     /**
@@ -949,7 +956,7 @@ public class Schematic {
 		}
 	    }
 	}
-	plugin.getLogger().info("DEBUG: islandBlocks after removing air blocks = " + islandBlocks.size());
+	//plugin.getLogger().info("DEBUG: islandBlocks after removing air blocks = " + islandBlocks.size());
     }
 
     /**
@@ -1088,6 +1095,8 @@ public class Schematic {
 	DirectionalContainer dc = (DirectionalContainer) blockToChange.getState().getData();
 	dc.setFacingDirection(BlockFace.SOUTH);
 	blockToChange.setData(dc.getData(), true);
+	// Teleport player
+	plugin.getGrid().homeTeleport(player);
 	if (!islandCompanion.isEmpty()) {
 	    Bukkit.getServer().getScheduler().runTaskLater(ASkyBlock.getPlugin(), new Runnable() {
 		@Override
@@ -1107,9 +1116,6 @@ public class Schematic {
      * @param expected
      *            The expected type of the tag
      * @return child tag casted to the expected type
-     * @throws DataException
-     *             if the tag does not exist or the tag is not of the
-     *             expected type
      */
     private static <T extends Tag> T getChildTag(Map<String, Tag> items, String key, Class<T> expected) throws IllegalArgumentException {
 	if (!items.containsKey(key)) {
@@ -1293,14 +1299,14 @@ public class Schematic {
 	String version = serverPackageName.substring(serverPackageName.lastIndexOf('.') + 1);
 	Class<?> clazz;
 	try {
-	    plugin.getLogger().info("DEBUG: Trying " + pluginPackageName + ".nms." + version + ".NMSHandler");
+	    //plugin.getLogger().info("DEBUG: Trying " + pluginPackageName + ".nms." + version + ".NMSHandler");
 	    clazz = Class.forName(pluginPackageName + ".nms." + version + ".NMSHandler");
 	} catch (Exception e) {
 	    plugin.getLogger().info("No NMS Handler found, falling back to Bukkit API.");
 	    clazz = Class.forName(pluginPackageName + ".nms.fallback.NMSHandler");
 	}
-	plugin.getLogger().info("DEBUG: " + serverPackageName);
-	plugin.getLogger().info("DEBUG: " + pluginPackageName);
+	//plugin.getLogger().info("DEBUG: " + serverPackageName);
+	//plugin.getLogger().info("DEBUG: " + pluginPackageName);
 	// Check if we have a NMSAbstraction implementing class at that location.
 	if (NMSAbstraction.class.isAssignableFrom(clazz)) {
 	    return (NMSAbstraction) clazz.getConstructor().newInstance();

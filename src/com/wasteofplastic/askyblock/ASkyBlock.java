@@ -33,6 +33,7 @@ import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.block.Biome;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
@@ -70,9 +71,11 @@ import com.wasteofplastic.askyblock.listeners.NetherPortals;
 import com.wasteofplastic.askyblock.listeners.PlayerEvents;
 import com.wasteofplastic.askyblock.listeners.WitherEvents;
 import com.wasteofplastic.askyblock.listeners.WorldEnter;
+import com.wasteofplastic.askyblock.listeners.WorldLoader;
 import com.wasteofplastic.askyblock.panels.BiomesPanel;
 import com.wasteofplastic.askyblock.panels.ControlPanel;
 import com.wasteofplastic.askyblock.panels.SchematicsPanel;
+import com.wasteofplastic.askyblock.panels.SettingsPanel;
 import com.wasteofplastic.askyblock.panels.WarpPanel;
 import com.wasteofplastic.askyblock.util.Util;
 import com.wasteofplastic.askyblock.util.VaultHelper;
@@ -131,6 +134,9 @@ public class ASkyBlock extends JavaPlugin {
     // Schematics panel object
     private SchematicsPanel schematicsPanel;
 
+    // Settings panel object
+    private SettingsPanel settingsPanel;
+
     /**
      * Returns the World object for the island world named in config.yml.
      * If the world does not exist then it is created.
@@ -139,8 +145,8 @@ public class ASkyBlock extends JavaPlugin {
      */
     public static World getIslandWorld() {
 	if (islandWorld == null) {
-	    // Bukkit.getLogger().info("DEBUG worldName = " +
-	    // Settings.worldName);
+	    //Bukkit.getLogger().info("DEBUG worldName = " + Settings.worldName);
+	    // 
 	    islandWorld = WorldCreator.name(Settings.worldName).type(WorldType.FLAT).environment(World.Environment.NORMAL).generator(new ChunkGeneratorWorld())
 		    .createWorld();
 	    // Make the nether if it does not exist
@@ -205,7 +211,7 @@ public class ASkyBlock extends JavaPlugin {
 	    }
 	    // Save the warps and do not reload the panel
 	    if (warpSignsListener != null) {
-		warpSignsListener.saveWarpList(false);
+		warpSignsListener.saveWarpList();
 	    }
 	    if (messages != null) {
 		messages.saveMessages();
@@ -287,14 +293,23 @@ public class ASkyBlock extends JavaPlugin {
 	// This can no longer be run in onEnable because the plugin is loaded at
 	// startup and so key variables are
 	// not known to the server. Instead it is run one tick after startup.
-	// getIslandWorld();
-
+	// If the world exists, load it, even without the generator
+	/*
+	if (Settings.createNether) {
+	    Bukkit.getWorld(Settings.worldName + "_nether");
+	}
+	if (Bukkit.getWorld(Settings.worldName) == null) {
+	    islandWorld = WorldCreator.name(Settings.worldName).type(WorldType.FLAT).environment(World.Environment.NORMAL).createWorld();
+	}*/
+	// Get challenges
+	challenges = new Challenges(this);
 	// Set and make the player's directory if it does not exist and then
 	// load players into memory
 	playersFolder = new File(getDataFolder() + File.separator + "players");
 	if (!playersFolder.exists()) {
 	    playersFolder.mkdir();
 	}
+	players = new PlayerCache(this);
 	// Set up commands for this plugin
 	islandCmd = new IslandCmd(this);
 	if (Settings.GAMETYPE.equals(Settings.GameType.ASKYBLOCK)) {
@@ -342,16 +357,6 @@ public class ASkyBlock extends JavaPlugin {
 		// Create the world if it does not exist. This is run after the
 		// server starts.
 		getIslandWorld();
-		// Load warps
-		getWarpSignsListener().loadWarpList();
-		// Load the warp panel
-		if (Settings.useWarpPanel) {
-		    warpPanel = new WarpPanel(plugin);
-		    getServer().getPluginManager().registerEvents(warpPanel, plugin);
-		}
-		// Minishop - must wait for economy to load before we can use
-		// econ
-		getServer().getPluginManager().registerEvents(new ControlPanel(plugin), plugin);
 		// Try to register Herochat
 		if (Bukkit.getServer().getPluginManager().isPluginEnabled("Herochat")) {
 		    getServer().getPluginManager().registerEvents(new HeroChatListener(plugin), plugin);
@@ -384,6 +389,24 @@ public class ASkyBlock extends JavaPlugin {
 			if (grid == null) {
 			    grid = new GridManager(plugin);
 			}
+			// Load warps
+			getWarpSignsListener().loadWarpList();
+			// Load the warp panel
+			if (Settings.useWarpPanel) {
+			    warpPanel = new WarpPanel(plugin);
+			    getServer().getPluginManager().registerEvents(warpPanel, plugin);
+			}
+			// Minishop - must wait for economy to load before we can use
+			// econ
+			getServer().getPluginManager().registerEvents(new ControlPanel(plugin), plugin);
+			// Settings
+			settingsPanel = new SettingsPanel(plugin);
+			getServer().getPluginManager().registerEvents(settingsPanel, plugin);
+			// Biomes
+			// Load Biomes
+			biomes = new BiomesPanel(plugin);
+			getServer().getPluginManager().registerEvents(biomes, plugin);
+
 			TopTen.topTenLoad();
 			if (tinyDB == null) {
 			    tinyDB = new TinyDB(plugin);
@@ -392,6 +415,14 @@ public class ASkyBlock extends JavaPlugin {
 			for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
 			    tinyDB.savePlayerName(onlinePlayer.getName(), onlinePlayer.getUniqueId());
 			}
+			// Save grid every 5 minutes
+			getServer().getScheduler().runTaskTimer(plugin, new Runnable() {
+
+			    @Override
+			    public void run() {
+				getGrid().saveGrid();
+			    }}, Settings.backupDuration, Settings.backupDuration);
+
 			getLogger().info("All files loaded. Ready to play...");
 		    }
 		});
@@ -563,7 +594,7 @@ public class ASkyBlock extends JavaPlugin {
      */
     public void deletePlayerIsland(final UUID player, boolean removeBlocks) {
 	// Removes the island
-	// getLogger().info("DEBUG: deleting player island");
+	//getLogger().info("DEBUG: deleting player island");
 	CoopPlay.getInstance().clearAllIslandCoops(player);
 	getWarpSignsListener().removeWarp(player);
 	Island island = grid.getIsland(player);
@@ -592,9 +623,10 @@ public class ASkyBlock extends JavaPlugin {
      * @return the challenges
      */
     public Challenges getChallenges() {
+	/*
 	if (challenges == null) {
 	    challenges = new Challenges(this);
-	}
+	}*/
 	return challenges;
     }
 
@@ -607,9 +639,10 @@ public class ASkyBlock extends JavaPlugin {
      * @return the grid
      */
     public GridManager getGrid() {
+	/*
 	if (grid == null) {
 	    grid = new GridManager(this);
-	}
+	}*/
 	return grid;
     }
 
@@ -617,9 +650,10 @@ public class ASkyBlock extends JavaPlugin {
      * @return the players
      */
     public PlayerCache getPlayers() {
+	/*
 	if (players == null) {
 	    players = new PlayerCache(this);
-	}
+	}*/
 	return players;
     }
 
@@ -687,6 +721,7 @@ public class ASkyBlock extends JavaPlugin {
 	availableLocales.put("cs-CS", new Locale(this,"cs-CS"));
 	availableLocales.put("sk-SK", new Locale(this,"sk-SK"));
 	availableLocales.put("zh-TW", new Locale(this,"zh-TW"));
+	availableLocales.put("nl-NL", new Locale(this,"nl-NL"));
 
 	// Assign settings
 	String configVersion = getConfig().getString("general.version", "");
@@ -721,6 +756,12 @@ public class ASkyBlock extends JavaPlugin {
 	}
 	// Debug
 	Settings.debug = getConfig().getInt("debug", 0);
+	// How often the grid will be saved to file. Default is 5 minutes
+	Settings.backupDuration = (getConfig().getLong("general.backupduration", 5) * 20 * 60);
+	// How long a player has to wait after deactivating PVP until they can activate PVP again
+	Settings.pvpRestartCooldown = getConfig().getLong("general.pvpcooldown",60);
+	// Max Islands
+	Settings.maxIslands = getConfig().getInt("general.maxIslands",0);
 	// Mute death messages
 	Settings.muteDeathMessages = getConfig().getBoolean("general.mutedeathmessages", false);
 	// Warp panel
@@ -954,23 +995,17 @@ public class ASkyBlock extends JavaPlugin {
 	}
 
 	Settings.animalSpawnLimit = getConfig().getInt("general.animalspawnlimit", 15);
-	if (Settings.animalSpawnLimit > 100) {
-	    Settings.animalSpawnLimit = 100;
-	} else if (Settings.animalSpawnLimit < -1) {
+	if (Settings.animalSpawnLimit < -1) {
 	    Settings.animalSpawnLimit = -1;
 	}
 
-	Settings.monsterSpawnLimit = getConfig().getInt("general.monsterspawnlimit", 70);
-	if (Settings.monsterSpawnLimit > 100) {
-	    Settings.monsterSpawnLimit = 100;
-	} else if (Settings.monsterSpawnLimit < -1) {
+	Settings.monsterSpawnLimit = getConfig().getInt("general.monsterspawnlimit", 100);
+	if (Settings.monsterSpawnLimit < -1) {
 	    Settings.monsterSpawnLimit = -1;
 	}
 
 	Settings.waterAnimalSpawnLimit = getConfig().getInt("general.wateranimalspawnlimit", 15);
-	if (Settings.waterAnimalSpawnLimit > 100) {
-	    Settings.waterAnimalSpawnLimit = 100;
-	} else if (Settings.waterAnimalSpawnLimit < -1) {
+	if (Settings.waterAnimalSpawnLimit < -1) {
 	    Settings.waterAnimalSpawnLimit = -1;
 	}
 
@@ -1064,81 +1099,87 @@ public class ASkyBlock extends JavaPlugin {
 	}
 	// getLogger().info("DEBUG: island level is " + Settings.island_level);
 	// Get chest items
-	final String[] chestItemString = getConfig().getString("island.chestItems").split(" ");
-	// getLogger().info("DEBUG: chest items = " + chestItemString);
-	final ItemStack[] tempChest = new ItemStack[chestItemString.length];
-	for (int i = 0; i < tempChest.length; i++) {
-	    try {
-		String[] amountdata = chestItemString[i].split(":");
-		if (amountdata[0].equals("POTION")) {
-		    // getLogger().info("DEBUG: Potion length " +
-		    // amountdata.length);
-		    if (amountdata.length == 2) {
-			final String chestPotionEffect = getConfig().getString("island.chestPotion", "");
-			if (!chestPotionEffect.isEmpty()) {
-			    // Change the water bottle stack to a potion of some
-			    // kind
-			    Potion chestPotion = new Potion(PotionType.valueOf(chestPotionEffect));
-			    tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[1]));
+	String chestItems = getConfig().getString("island.chestItems","");
+	if (!chestItems.isEmpty()) {
+	    final String[] chestItemString = chestItems.split(" ");
+	    // getLogger().info("DEBUG: chest items = " + chestItemString);
+	    final ItemStack[] tempChest = new ItemStack[chestItemString.length];
+	    for (int i = 0; i < tempChest.length; i++) {
+		try {
+		    String[] amountdata = chestItemString[i].split(":");
+		    if (amountdata[0].equals("POTION")) {
+			// getLogger().info("DEBUG: Potion length " +
+			// amountdata.length);
+			if (amountdata.length == 2) {
+			    final String chestPotionEffect = getConfig().getString("island.chestPotion", "");
+			    if (!chestPotionEffect.isEmpty()) {
+				// Change the water bottle stack to a potion of some
+				// kind
+				Potion chestPotion = new Potion(PotionType.valueOf(chestPotionEffect));
+				tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[1]));
+			    }
+			} else if (amountdata.length == 3) {
+			    // getLogger().info("DEBUG: Potion type :" +
+			    // amountdata[1]);
+			    Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1]));
+			    // getLogger().info("Potion in chest is :" +
+			    // chestPotion.getType().toString() + " x " +
+			    // amountdata[2]);
+			    tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[2]));
+			} else if (amountdata.length == 4) {
+			    // Extended or splash potions
+			    if (amountdata[2].equals("EXTENDED")) {
+				Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).extend();
+				// getLogger().info("Potion in chest is :" +
+				// chestPotion.getType().toString() +
+				// " extended duration x " + amountdata[3]);
+				tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
+			    } else if (amountdata[2].equals("SPLASH")) {
+				Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).splash();
+				// getLogger().info("Potion in chest is :" +
+				// chestPotion.getType().toString() + " splash x " +
+				// amountdata[3]);
+				tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
+			    } else if (amountdata[2].equals("EXTENDEDSPLASH")) {
+				Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).extend().splash();
+				// getLogger().info("Potion in chest is :" +
+				// chestPotion.getType().toString() +
+				// " splash, extended duration x " + amountdata[3]);
+				tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
+			    }
 			}
-		    } else if (amountdata.length == 3) {
-			// getLogger().info("DEBUG: Potion type :" +
-			// amountdata[1]);
-			Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1]));
-			// getLogger().info("Potion in chest is :" +
-			// chestPotion.getType().toString() + " x " +
-			// amountdata[2]);
-			tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[2]));
-		    } else if (amountdata.length == 4) {
-			// Extended or splash potions
-			if (amountdata[2].equals("EXTENDED")) {
-			    Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).extend();
-			    // getLogger().info("Potion in chest is :" +
-			    // chestPotion.getType().toString() +
-			    // " extended duration x " + amountdata[3]);
-			    tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
-			} else if (amountdata[2].equals("SPLASH")) {
-			    Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).splash();
-			    // getLogger().info("Potion in chest is :" +
-			    // chestPotion.getType().toString() + " splash x " +
-			    // amountdata[3]);
-			    tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
-			} else if (amountdata[2].equals("EXTENDEDSPLASH")) {
-			    Potion chestPotion = new Potion(PotionType.valueOf(amountdata[1])).extend().splash();
-			    // getLogger().info("Potion in chest is :" +
-			    // chestPotion.getType().toString() +
-			    // " splash, extended duration x " + amountdata[3]);
-			    tempChest[i] = chestPotion.toItemStack(Integer.parseInt(amountdata[3]));
-			}
-		    }
-		} else {
-		    Material mat;
-		    if (StringUtils.isNumeric(amountdata[0])) {
-			mat = Material.getMaterial(Integer.parseInt(amountdata[0]));
 		    } else {
-			mat = Material.getMaterial(amountdata[0].toUpperCase());
+			Material mat;
+			if (StringUtils.isNumeric(amountdata[0])) {
+			    mat = Material.getMaterial(Integer.parseInt(amountdata[0]));
+			} else {
+			    mat = Material.getMaterial(amountdata[0].toUpperCase());
+			}
+			if (amountdata.length == 2) {
+			    tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[1]));
+			} else if (amountdata.length == 3) {
+			    tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[2]), Short.parseShort(amountdata[1]));
+			}
 		    }
-		    if (amountdata.length == 2) {
-			tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[1]));
-		    } else if (amountdata.length == 3) {
-			tempChest[i] = new ItemStack(mat, Integer.parseInt(amountdata[2]), Short.parseShort(amountdata[1]));
-		    }
+		} catch (java.lang.IllegalArgumentException ex) {
+		    getLogger().severe("Problem loading chest item from config.yml so skipping it: " + chestItemString[i]);
+		    getLogger().severe("Error is : " + ex.getMessage());
+		    getLogger().info("Potential potion types are: ");
+		    for (PotionType c : PotionType.values())
+			getLogger().info(c.name());
+		} catch (Exception e) {
+		    getLogger().severe("Problem loading chest item from config.yml so skipping it: " + chestItemString[i]);
+		    getLogger().info("Potential material types are: ");
+		    for (Material c : Material.values())
+			getLogger().info(c.name());
+		    // e.printStackTrace();
 		}
-	    } catch (java.lang.IllegalArgumentException ex) {
-		getLogger().severe("Problem loading chest item from config.yml so skipping it: " + chestItemString[i]);
-		getLogger().severe("Error is : " + ex.getMessage());
-		getLogger().info("Potential potion types are: ");
-		for (PotionType c : PotionType.values())
-		    getLogger().info(c.name());
-	    } catch (Exception e) {
-		getLogger().severe("Problem loading chest item from config.yml so skipping it: " + chestItemString[i]);
-		getLogger().info("Potential material types are: ");
-		for (Material c : Material.values())
-		    getLogger().info(c.name());
-		// e.printStackTrace();
 	    }
+	    Settings.chestItems = tempChest;
+	} else {
+	    // Nothing in the chest
+	    Settings.chestItems = new ItemStack[0];
 	}
-	Settings.chestItems = tempChest;
 	Settings.allowPvP = getConfig().getBoolean("island.allowPvP", false);
 	Settings.allowNetherPvP = getConfig().getBoolean("island.allowNetherPvP", false);
 	Settings.allowBreakBlocks = getConfig().getBoolean("island.allowbreakblocks", false);
@@ -1178,7 +1219,14 @@ public class ASkyBlock extends JavaPlugin {
 	Settings.allowArmorStandUse = getConfig().getBoolean("island.allowarmorstanduse", false);
 	Settings.allowBeaconAccess = getConfig().getBoolean("island.allowbeaconaccess", false);
 	Settings.allowPortalUse = getConfig().getBoolean("island.allowportaluse", true);
+	Settings.allowPressurePlate = getConfig().getBoolean("island.allowpressureplates", true);
+	Settings.allowPistonPush = getConfig().getBoolean("island.allowpistonpush", true);
+	Settings.allowHorseRiding = getConfig().getBoolean("island.allowhorseriding", false);
+	Settings.allowHorseInvAccess = getConfig().getBoolean("island.allowhorseinventoryaccess", false);
 	// Spawn Settings
+	Settings.allowSpawnHorseRiding = getConfig().getBoolean("spawn.allowhorseriding", false);
+	Settings.allowSpawnHorseInvAccess = getConfig().getBoolean("spawn.allowhorseinventoryaccess", false);
+	Settings.allowSpawnPressurePlate = getConfig().getBoolean("spawn.allowpressureplates", true);
 	Settings.allowSpawnDoorUse = getConfig().getBoolean("spawn.allowdooruse", true);
 	Settings.allowSpawnLeverButtonUse = getConfig().getBoolean("spawn.allowleverbuttonuse", true);
 	Settings.allowSpawnChestAccess = getConfig().getBoolean("spawn.allowchestaccess", true);
@@ -1204,6 +1252,9 @@ public class ASkyBlock extends JavaPlugin {
 	Settings.allowSpawnMilking = getConfig().getBoolean("spawn.allowmilking", false);
 	Settings.allowSpawnLavaCollection = getConfig().getBoolean("spawn.allowlavacollection", false);
 	Settings.allowSpawnWaterCollection = getConfig().getBoolean("spawn.allowwatercollection", false);
+	Settings.allowSpawnVisitorItemDrop = getConfig().getBoolean("spawn.allowvisitoritemdrop", true);
+	Settings.allowSpawnVisitorItemPickup = getConfig().getBoolean("spawn.allowvisitoritempickup", true);
+
 	// Challenges
 	getChallenges();
 	// Challenge completion
@@ -1285,7 +1336,40 @@ public class ASkyBlock extends JavaPlugin {
 	}
 	Settings.breedingLimit = getConfig().getInt("general.breedinglimit", 0);
 	Settings.villagerLimit = getConfig().getInt("general.villagerlimit", 0);
-	Settings.hopperLimit = getConfig().getInt("general.hopperlimit", 0);
+	Settings.limitedBlocks = new HashMap<String,Integer>();
+	ConfigurationSection entityLimits = getConfig().getConfigurationSection("general.entitylimits");
+	if (entityLimits != null) {
+	    for (String entity: entityLimits.getKeys(false)) {
+		int limit = entityLimits.getInt(entity.toUpperCase(), -1);
+		if (limit > 0) {
+		    getLogger().info(entity.toUpperCase() + " will be limited to " + limit);
+		}
+		if (Material.getMaterial(entity.toUpperCase()) == null) {
+		    getLogger().warning("general.entitylimits section has unknown entity type: " + entity.toUpperCase() + " skipping...");
+		} else if (limit > -1) {
+		    Settings.limitedBlocks.put(entity.toUpperCase(), limit);
+		    if (entity.equalsIgnoreCase("REDSTONE_COMPARATOR")) {
+			// Player can only ever place a redstone comparator in the OFF state
+			Settings.limitedBlocks.put("REDSTONE_COMPARATOR_OFF", limit);
+		    } else if (entity.equalsIgnoreCase("BANNER")) {
+			// To simplify banners, the banner is allowed and automatically made wall and standing banner
+			Settings.limitedBlocks.put("WALL_BANNER", limit);
+			Settings.limitedBlocks.put("STANDING_BANNER", limit);
+		    } else if (entity.equalsIgnoreCase("SIGN")) {
+			// To simplify signs, the sign is allowed and automatically made wall and standing signs
+			Settings.limitedBlocks.put("WALL_SIGN", limit);
+			Settings.limitedBlocks.put("SIGN_POST", limit);
+		    }
+		}
+	    }
+	}
+	// Legacy setting support for hopper limiting
+	if (Settings.limitedBlocks.isEmpty()) {
+	    Settings.hopperLimit = getConfig().getInt("general.hopperlimit", -1);
+	    if (Settings.hopperLimit > 0) {
+		Settings.limitedBlocks.put("HOPPER", Settings.hopperLimit);
+	    }
+	}
 	Settings.mobLimit = getConfig().getInt("general.moblimit", 0);
 	Settings.removeCompleteOntimeChallenges = getConfig().getBoolean("general.removecompleteonetimechallenges", false);
 	Settings.addCompletedGlow = getConfig().getBoolean("general.addcompletedglow", true);
@@ -1327,10 +1411,6 @@ public class ASkyBlock extends JavaPlugin {
 	// manager.registerEvents(new ControlPanel(), this);
 	// Change names of inventory items
 	manager.registerEvents(new AcidInventory(this), this);
-	// Biomes
-	// Load Biomes
-	biomes = new BiomesPanel(this);
-	manager.registerEvents(biomes, this);
 	// Schematics panel
 	schematicsPanel = new SchematicsPanel(this);
 	manager.registerEvents(schematicsPanel, this);
@@ -1343,6 +1423,8 @@ public class ASkyBlock extends JavaPlugin {
 	if (Settings.restrictWither) {
 	    manager.registerEvents(new WitherEvents(this), this);
 	}
+	// World loader
+	manager.registerEvents(new WorldLoader(this), this);
     }
 
 
@@ -1369,10 +1451,12 @@ public class ASkyBlock extends JavaPlugin {
 	    player.getInventory().setBoots(null);
 	    player.getEquipment().clear();
 	}
-	player.setGameMode(GameMode.SURVIVAL);
+	if (!player.isOp()) {
+	    player.setGameMode(GameMode.SURVIVAL);
+	}
 	if (Settings.resetChallenges) {
 	    // Reset the player's challenge status
-	    players.resetAllChallenges(player.getUniqueId());
+	    players.resetAllChallenges(player.getUniqueId(), false);
 	}
 	// Reset the island level
 	players.setIslandLevel(player.getUniqueId(), 0);
@@ -1479,9 +1563,6 @@ public class ASkyBlock extends JavaPlugin {
      * @return the nameDB
      */
     public TinyDB getTinyDB() {
-	if (tinyDB == null) {
-	    tinyDB = new TinyDB(this);
-	}
 	return tinyDB;
     }
 
@@ -1519,6 +1600,13 @@ public class ASkyBlock extends JavaPlugin {
      * @return the onePointEight
      */
     public boolean isOnePointEight() {
-        return onePointEight;
+	return onePointEight;
+    }
+
+    /**
+     * @return the settingsPanel
+     */
+    public SettingsPanel getSettingsPanel() {
+	return settingsPanel;
     }
 }

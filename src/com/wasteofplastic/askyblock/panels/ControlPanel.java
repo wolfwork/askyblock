@@ -28,6 +28,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -200,9 +201,8 @@ public class ControlPanel implements Listener {
 	}
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled=true)
     public void onInventoryClick(InventoryClickEvent event) {
-	// TODO : this needs optimization
 	Player player = (Player) event.getWhoClicked(); // The player that
 							// clicked the item
 	ItemStack clicked = event.getCurrentItem(); // The item that was clicked
@@ -210,15 +210,6 @@ public class ControlPanel implements Listener {
 						    // clicked in
 	// ASkyBlock plugin = ASkyBlock.getPlugin();
 	int slot = event.getRawSlot();
-	// Settings
-	if (inventory.getName().equalsIgnoreCase(plugin.myLocale().igsTitle)) {
-	    if (event.getSlotType() == SlotType.OUTSIDE) {
-		player.closeInventory();
-		return;
-	    }
-	    event.setCancelled(true);
-	    return;
-	}
 	// Challenges
 	if (inventory.getName().equals(plugin.myLocale(player.getUniqueId()).challengesguiTitle)) {
 	    event.setCancelled(true);
@@ -339,12 +330,12 @@ public class ControlPanel implements Listener {
 	// Check control panels
 	for (String panelName : controlPanel.keySet()) {
 	    if (inventory.getName().equals(panelName)) {
+		event.setCancelled(true);
 		// plugin.getLogger().info("DEBUG: panels length " +
 		// panels.size());
 		// plugin.getLogger().info("DEBUG: panel name " + panelName);
 		if (slot == -999) {
-		    player.closeInventory();
-		    event.setCancelled(true);
+		    player.closeInventory(); 
 		    return;
 		}
 		HashMap<Integer, CPItem> thisPanel = panels.get(panelName);

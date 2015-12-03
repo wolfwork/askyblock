@@ -13,7 +13,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World.Environment;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -33,7 +32,6 @@ import org.json.simple.parser.ContainerFactory;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import com.wasteofplastic.askyblock.Settings;
 import com.wasteofplastic.askyblock.nms.NMSAbstraction;
 
 public class IslandBlock {
@@ -47,15 +45,15 @@ public class IslandBlock {
     private EntityType spawnerBlockType;
     // Chest contents
     private HashMap<Byte,ItemStack> chestContents = new HashMap<Byte,ItemStack>();
-    private static HashMap<String, Material> WEtoM = new HashMap<String, Material>();
-    private static HashMap<String, EntityType> WEtoME = new HashMap<String, EntityType>();
+    public static final HashMap<String, Material> WEtoM = new HashMap<String, Material>();
+    public static final HashMap<String, EntityType> WEtoME = new HashMap<String, EntityType>();
 
     static {
 	// Establish the World Edit to Material look up
 	// V1.8 items
 	if (!Bukkit.getServer().getVersion().contains("(MC: 1.7")) {
 
-
+	    WEtoM.put("ARMORSTAND",Material.ARMOR_STAND);
 	    WEtoM.put("ACACIA_DOOR",Material.ACACIA_DOOR_ITEM);
 	    WEtoM.put("BIRCH_DOOR",Material.BIRCH_DOOR_ITEM);
 	    WEtoM.put("BIRCH_STAIRS",Material.BIRCH_WOOD_STAIRS);
@@ -134,6 +132,7 @@ public class IslandBlock {
 	WEtoM.put("STONE_STAIRS",Material.COBBLESTONE_STAIRS);
 	WEtoM.put("TNT_MINECART",Material.EXPLOSIVE_MINECART);
 	WEtoM.put("WATERLILY",Material.WATER_LILY);
+	WEtoM.put("WHEAT_SEEDS", Material.SEEDS);
 	WEtoM.put("WOODEN_AXE",Material.WOOD_AXE);
 	WEtoM.put("WOODEN_BUTTON",Material.WOOD_BUTTON);
 	WEtoM.put("WOODEN_DOOR",Material.WOOD_DOOR);
@@ -149,6 +148,21 @@ public class IslandBlock {
 	WEtoME.put("OZELOT", EntityType.OCELOT);
 	WEtoME.put("MUSHROOMCOW", EntityType.MUSHROOM_COW);
 	WEtoME.put("PIGZOMBIE", EntityType.PIG_ZOMBIE);
+	WEtoME.put("CAVESPIDER", EntityType.CAVE_SPIDER);
+	WEtoME.put("XPORB", EntityType.EXPERIENCE_ORB);
+	WEtoME.put("MINECARTRIDEABLE", EntityType.MINECART);
+	WEtoME.put("MINECARTHOPPER", EntityType.MINECART_HOPPER);
+	WEtoME.put("MINECARTFURNACE", EntityType.MINECART_FURNACE);
+	WEtoME.put("MINECARTMOBSPAWNER", EntityType.MINECART_MOB_SPAWNER);
+	WEtoME.put("MINECARTTNT", EntityType.MINECART_TNT);
+	WEtoME.put("MINECARTCHEST", EntityType.MINECART_CHEST);
+	WEtoME.put("VILLAGERGOLEM", EntityType.IRON_GOLEM);
+	WEtoME.put("ENDERDRAGON", EntityType.ENDER_DRAGON);
+	if (!Bukkit.getServer().getVersion().contains("(MC: 1.7")) {
+	    WEtoME.put("ENDERCRYSTAL", EntityType.ENDER_CRYSTAL);
+	    WEtoME.put("ARMORSTAND", EntityType.ARMOR_STAND);
+	}
+
     }
 
     /**
@@ -230,7 +244,11 @@ public class IslandBlock {
 	if (WEtoME.containsKey(creatureType)) {
 	    spawnerBlockType = WEtoME.get(creatureType);
 	} else {
-	    spawnerBlockType = EntityType.valueOf(creatureType);
+	    try {
+		spawnerBlockType = EntityType.valueOf(creatureType);
+	    } catch (Exception e) {
+		Bukkit.getLogger().severe("I don't know what a " + creatureType + " is... Skipping spawner setting.");
+	    }
 	}
     }
 
@@ -305,6 +323,7 @@ public class IslandBlock {
 						lineText += ChatColor.valueOf(key.toUpperCase());
 					    } catch (Exception noFormat) {
 						// Ignore
+						//System.out.println("DEBUG3:" + key + "=>" + value);
 						Bukkit.getLogger().warning("Unknown format " + value +" in sign when pasting schematic, skipping...");
 					    }
 					}
@@ -342,8 +361,13 @@ public class IslandBlock {
 	}
     }
 
+    public void setBook(Map<String, Tag> tileData) {
+	//Bukkit.getLogger().info("DEBUG: Book data ");
+	Bukkit.getLogger().info(tileData.toString());
+    }
+
     @SuppressWarnings("deprecation")
-    public void setChest(Map<String, Tag> tileData) {
+    public void setChest(NMSAbstraction nms, Map<String, Tag> tileData) {
 	try {
 	    ListTag chestItems = (ListTag) tileData.get("Items");
 	    if (chestItems != null) {
@@ -388,6 +412,9 @@ public class IslandBlock {
 				    byte itemAmount = (Byte) ((CompoundTag) item).getValue().get("Count").getValue();
 				    byte itemSlot = (Byte) ((CompoundTag) item).getValue().get("Slot").getValue();
 				    ItemStack chestItem = new ItemStack(itemMaterial, itemAmount, itemDamage);
+				    if (itemMaterial.equals(Material.WRITTEN_BOOK)) {
+					chestItem = nms.setBook(item);
+				    }
 				    chestContents.put(itemSlot, chestItem);
 				}
 			    } catch (Exception exx) {
@@ -396,7 +423,7 @@ public class IslandBlock {
 				Bukkit.getLogger().severe(
 					"Could not parse item [" + itemType.substring(10).toUpperCase() + "] in schematic - skipping!");
 				// Bukkit.getLogger().severe(item.toString());
-				//exx.printStackTrace();
+				exx.printStackTrace();
 			    }
 
 			}
@@ -434,7 +461,7 @@ public class IslandBlock {
 	//if (typeId != 0) {
 	nms.setBlockSuperFast(block, typeId, data, usePhysics);
 	//block.setTypeIdAndData(typeId, (byte)data, usePhysics);
-	
+
 	//}
 	//if (typeId != 0 && block.getWorld().getEnvironment().equals(Environment.NORMAL)) {
 	//    Bukkit.getLogger().info("Debug: " + Material.getMaterial(typeId) + "("+ typeId +":" + data + ") " + block.getLocation());
@@ -470,7 +497,7 @@ public class IslandBlock {
 	    }
 	}
     }
-    
+
     /**
      * @return Vector for where this block is in the schematic
      */

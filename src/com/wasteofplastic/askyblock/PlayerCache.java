@@ -378,9 +378,25 @@ public class PlayerCache {
 	playerCache.get(playerUUID).resetChallenge(challenge);
     }
 
-    public void resetAllChallenges(UUID playerUUID) {
+    /**
+     * Resets all the player's challenges. If the boolean is true, then everything will be reset, if false
+     * challenges that have the "resetallowed: false" flag in challenges.yml will not be reset
+     * @param playerUUID
+     * @param resetAll
+     */
+    public void resetAllChallenges(UUID playerUUID, boolean resetAll) {
 	addPlayer(playerUUID);
-	playerCache.get(playerUUID).resetAllChallenges();
+	if (resetAll) {
+	    playerCache.get(playerUUID).resetAllChallenges();
+	} else {
+	    // Look through challenges and check them
+	    for (String challenge: plugin.getChallenges().getAllChallenges()) {
+		// Check for the flag
+		if (plugin.getChallenges().resetable(challenge)) {
+		    playerCache.get(playerUUID).resetChallenge(challenge);
+		}
+	    }
+	}
     }
 
     public void setJoinTeam(UUID playerUUID, UUID teamLeader, Location islandLocation) {
@@ -448,11 +464,11 @@ public class PlayerCache {
     public void save(UUID playerUUID) {
 	playerCache.get(playerUUID).save();
 	// Save the name + UUID in the database if it ready
-	if (plugin.getTinyDB().isDbReady()) {
+	if (plugin.getTinyDB() != null && plugin.getTinyDB().isDbReady()) {
 	    plugin.getTinyDB().savePlayerName(playerCache.get(playerUUID).getPlayerName(), playerUUID);
 	}
     }
-    
+
     public void completeChallenge(UUID playerUUID, String challenge) {
 	addPlayer(playerUUID);
 	playerCache.get(playerUUID).completeChallenge(challenge);
@@ -478,7 +494,7 @@ public class PlayerCache {
 	    }
 	}
 	// Look in the database if it ready
-	if (plugin.getTinyDB().isDbReady()) {
+	if (plugin.getTinyDB() != null && plugin.getTinyDB().isDbReady()) {
 	    return plugin.getTinyDB().getPlayerUUID(string);
 	}
 	return null;
@@ -494,7 +510,9 @@ public class PlayerCache {
 	playerCache.get(uniqueId).setPlayerN(name);
 	// Save the name in the name database. Note that the old name will still work until someone takes it
 	// This feature enables admins to locate 'fugitive' players even if they change their name
-	plugin.getTinyDB().savePlayerName(name, uniqueId);
+	if (plugin.getTinyDB() != null && plugin.getTinyDB().isDbReady()) {
+	    plugin.getTinyDB().savePlayerName(name, uniqueId);
+	}
     }
 
     /**
@@ -753,5 +771,35 @@ public class PlayerCache {
     public List<UUID> getBanList(UUID playerUUID) {
 	addPlayer(playerUUID);
 	return playerCache.get(playerUUID).getBanList();
+    }
+
+    /**
+     * Clears resets for online players or players in the cache
+     * @param resetLimit
+     */
+    public void clearResets(int resetLimit) {
+	for (Players player : playerCache.values()) {
+	    player.setResetsLeft(resetLimit);
+	}	
+    }
+
+    /**
+     * Sets whether the player uses the control panel or not when doing /island
+     * @param b
+     */
+    public void setControlPanel(UUID playerUUID, boolean b) {
+	addPlayer(playerUUID);
+	playerCache.get(playerUUID).setControlPanel(b);
+
+    }
+
+    /**
+     * Sets whether the player uses the control panel or not when doing /island
+     * @param b
+     */
+    public boolean getControlPanel(UUID playerUUID) {
+	addPlayer(playerUUID);
+	return playerCache.get(playerUUID).getControlPanel();
+
     }
 }

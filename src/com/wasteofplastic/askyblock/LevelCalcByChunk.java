@@ -1,8 +1,8 @@
 package com.wasteofplastic.askyblock;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.ChatColor;
@@ -37,20 +37,24 @@ public class LevelCalcByChunk {
      * @param asker
      */
     public LevelCalcByChunk(final ASkyBlock plugin, final UUID targetPlayer, final Player asker, final boolean silent) {
-	// plugin.getLogger().info("DEBUG: running level calc " + silent);
+	//plugin.getLogger().info("DEBUG: running level calc " + silent);
 	// Get player's island
 	Island island = plugin.getGrid().getIsland(targetPlayer);
 	if (island != null) {
-	    World world = island.getCenter().getWorld();
+	    // Check if player's island world is the nether or overworld and adjust accordingly
+	    World world = plugin.getPlayers().getHomeLocation(targetPlayer).getWorld();
 	    // Get the chunks
-	    List<ChunkSnapshot> chunkSnapshot = new ArrayList<ChunkSnapshot>();
-	    for (int x = island.getMinProtectedX() /16; x <= (island.getMinProtectedX() + island.getProtectionSize() - 1)/16; x++) {
-		for (int z = island.getMinProtectedZ() /16; z <= (island.getMinProtectedZ() + island.getProtectionSize() - 1)/16; z++) {
-		    chunkSnapshot.add(world.getChunkAt(x, z).getChunkSnapshot());
-		}  
+	    //long nano = System.nanoTime();
+	    Set<ChunkSnapshot> chunkSnapshot = new HashSet<ChunkSnapshot>();
+	    for (int x = island.getMinProtectedX(); x < (island.getMinProtectedX() + island.getProtectionSize() + 16); x += 16) {
+		for (int z = island.getMinProtectedZ(); z < (island.getMinProtectedZ() + island.getProtectionSize() + 16); z += 16) {
+		    chunkSnapshot.add(world.getBlockAt(x, 0, z).getChunk().getChunkSnapshot());
+		    //plugin.getLogger().info("DEBUG: getting chunk at " + x + ", " + z);
+		}
 	    }
+	    //plugin.getLogger().info("DEBUG: time = " + (System.nanoTime() - nano) / 1000000 + " ms");
 	    //plugin.getLogger().info("DEBUG: size of chunk ss = " + chunkSnapshot.size());
-	    final List<ChunkSnapshot> finalChunk = chunkSnapshot;
+	    final Set<ChunkSnapshot> finalChunk = chunkSnapshot;
 	    final int worldHeight = world.getMaxHeight();
 	    //plugin.getLogger().info("DEBUG:world height = " +worldHeight);
 	    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, new Runnable() {
@@ -156,16 +160,20 @@ public class LevelCalcByChunk {
 				}
 			    }
 			    //plugin.getLogger().info("DEBUG: updating top ten");
-			    if (plugin.getPlayers().inTeam(targetPlayer)) {
-				UUID leader = plugin.getPlayers().getTeamLeader(targetPlayer);
-				if (leader != null) {
-				    TopTen.topTenAddEntry(leader, score);
+			    // Only update top ten if the asker doesn't have this permission
+			    if (!(asker.getUniqueId().equals(targetPlayer) && asker.hasPermission(Settings.PERMPREFIX + "excludetopten"))) {
+				if (plugin.getPlayers().inTeam(targetPlayer)) {
+				    UUID leader = plugin.getPlayers().getTeamLeader(targetPlayer);
+				    if (leader != null) {
+					TopTen.topTenAddEntry(leader, score);
+				    }
+				} else {
+				    TopTen.topTenAddEntry(targetPlayer, score);
 				}
-			    } else {
-				TopTen.topTenAddEntry(targetPlayer, score);
 			    }
 			    // Fire the level event
-			    final IslandLevelEvent event = new IslandLevelEvent(plugin, targetPlayer, score);
+			    Island island = plugin.getGrid().getIsland(targetPlayer);
+			    final IslandLevelEvent event = new IslandLevelEvent(targetPlayer, island, score);
 			    plugin.getServer().getPluginManager().callEvent(event);
 			}});
 		}});

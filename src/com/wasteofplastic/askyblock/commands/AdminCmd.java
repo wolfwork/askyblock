@@ -19,7 +19,9 @@ package com.wasteofplastic.askyblock.commands;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -98,6 +100,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
     private void help(CommandSender sender, String label) {
 	if (!(sender instanceof Player)) {
 	    sender.sendMessage(ChatColor.YELLOW + "/" + label + " clearreset <player>:" + ChatColor.WHITE + " " + plugin.myLocale().adminHelpclearReset);
+	    sender.sendMessage(ChatColor.YELLOW + "/" + label + " clearresetall:" + ChatColor.WHITE + " " + plugin.myLocale().adminHelpclearReset);
 	    sender.sendMessage(ChatColor.YELLOW + "/" + label + " completechallenge <challengename> <player>:" + ChatColor.WHITE + " "
 		    + plugin.myLocale().adminHelpcompleteChallenge);
 	    sender.sendMessage(ChatColor.YELLOW + "/" + label + " delete <player>:" + ChatColor.WHITE + " " + plugin.myLocale().adminHelpdelete);
@@ -126,6 +129,9 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 	    player.sendMessage(plugin.myLocale(player.getUniqueId()).adminHelpHelp);
 	    if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.clearreset") || player.isOp()) {
 		player.sendMessage(ChatColor.YELLOW + "/" + label + " clearreset <player>:" + ChatColor.WHITE + " " + plugin.myLocale(player.getUniqueId()).adminHelpclearReset);
+	    }
+	    if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "admin.clearresetall") || player.isOp()) {
+		player.sendMessage(ChatColor.YELLOW + "/" + label + " clearresetall:" + ChatColor.WHITE + " " + plugin.myLocale(player.getUniqueId()).adminHelpclearReset);
 	    }
 	    if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.challenges") || player.isOp()) {
 		player.sendMessage(ChatColor.YELLOW + "/" + label + " completechallenge <challengename> <player>:" + ChatColor.WHITE + " "
@@ -186,7 +192,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 	    if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "admin.setrange") || player.isOp()) {
 		player.sendMessage(ChatColor.YELLOW + "/" + label + " setrange:" + ChatColor.WHITE + " " + plugin.myLocale(player.getUniqueId()).adminHelpSetRange);
 	    }
-	    if (Settings.teamChat && VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.teamchatspy") || player.isOp()) {
+	    if (Settings.teamChat && VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.spy") || player.isOp()) {
 		player.sendMessage(ChatColor.YELLOW + "/" + label + " spy:" + ChatColor.WHITE + " " + plugin.myLocale(player.getUniqueId()).adminHelpTeamChatSpy);
 	    }
 	    if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.team") || player.isOp()) {
@@ -232,7 +238,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		if (split[0].equalsIgnoreCase("reload") || split[0].equalsIgnoreCase("register") || split[0].equalsIgnoreCase("delete")
 			|| split[0].equalsIgnoreCase("purge") || split[0].equalsIgnoreCase("confirm") || split[0].equalsIgnoreCase("setspawn")
 			|| split[0].equalsIgnoreCase("deleteisland") || split[0].equalsIgnoreCase("setrange")
-			|| split[0].equalsIgnoreCase("unregister")) {
+			|| split[0].equalsIgnoreCase("unregister") || split[0].equalsIgnoreCase("clearresetall")) {
 		    if (!checkAdminPerms(player, split)) {
 			player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).errorNoPermission);
 			return true;
@@ -258,7 +264,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    return true;
 		}
 		player = (Player) sender;
-		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.teamchatspy") || player.isOp()) {
+		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.spy") || player.isOp()) {
 		    if (plugin.getChatListener().toggleSpy(player.getUniqueId())) {
 			sender.sendMessage(ChatColor.GREEN + plugin.myLocale().teamChatStatusOn);
 		    } else {
@@ -576,8 +582,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		return true;
 	    } else if (split[0].equalsIgnoreCase("topten")) {
 		sender.sendMessage(ChatColor.YELLOW + plugin.myLocale().adminTopTengenerating);
-		TopTen.topTenCreate();
-		sender.sendMessage(ChatColor.YELLOW + plugin.myLocale().adminTopTenfinished);
+		TopTen.topTenCreate(sender);
 		return true;
 	    } else if (split[0].equalsIgnoreCase("purge")) {
 		if (purgeFlag) {
@@ -596,10 +601,83 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    confirmReq = false;
 		}
 		return true;
-	    } else {
-		sender.sendMessage(ChatColor.RED + plugin.myLocale().errorUnknownCommand);
-		return false;
-	    }
+	    } else
+		// clearesetall - clears all player resets
+		if (split[0].equalsIgnoreCase("clearresetall")) {
+		    if (asyncPending) {
+			sender.sendMessage(ChatColor.RED + plugin.myLocale().errorCommandNotReady);
+			return true;
+		    }
+		    // Do online players first
+		    plugin.getPlayers().clearResets(Settings.resetLimit);
+		    // Do offline players
+		    final File playerFolder = plugin.getPlayersFolder();
+		    // Set the pending flag
+		    asyncPending = true;
+		    // Check against player files
+		    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, new Runnable() {
+
+			@Override
+			public void run() {
+			    //System.out.println("DEBUG: Running async task");
+			    int done = 0;
+			    // Check files against potentialUnowned
+			    FilenameFilter ymlFilter = new FilenameFilter() {
+				public boolean accept(File dir, String name) {
+				    String lowercaseName = name.toLowerCase();
+				    if (lowercaseName.endsWith(".yml")) {
+					return true;
+				    } else {
+					return false;
+				    }
+				}
+			    };			
+			    for (File file: playerFolder.listFiles(ymlFilter)) {
+				List<String> playerFileContents = new ArrayList<String>();
+				done++;
+				try {
+				    Scanner scanner = new Scanner(file);
+				    while (scanner.hasNextLine()) {
+					final String lineFromFile = scanner.nextLine();
+					if (lineFromFile.contains("resetsLeft:")) { 
+					    playerFileContents.add("resetsLeft: " + Settings.resetLimit);
+					} else {
+					    playerFileContents.add(lineFromFile);
+					}
+				    }
+				    scanner.close();
+				    // Write file
+				    FileWriter writer = new FileWriter(file); 
+				    for(String str: playerFileContents) {
+					writer.write(str + "\n");
+				    }
+				    writer.close();
+				    if (done % 500 == 0) {
+					final int update = done;
+					plugin.getServer().getScheduler().runTask(plugin, new Runnable() {
+
+					    @Override
+					    public void run() {
+						// Tell player
+						sender.sendMessage(ChatColor.GREEN + plugin.myLocale().clearedResetLimit + " [" + update + " players]...");	    
+					    }});
+				    }
+				} catch (FileNotFoundException e) {
+				    e.printStackTrace();
+				} catch (IOException e) {
+				    // TODO Auto-generated catch block
+				    e.printStackTrace();
+				}
+			    }
+			    //System.out.println("DEBUG: scanning done");
+			    asyncPending = false;
+			    sender.sendMessage(ChatColor.YELLOW + plugin.myLocale().clearedResetLimit + " [" + done + " players] completed.");
+			}});
+		    return true;
+		} else {
+		    sender.sendMessage(ChatColor.RED + plugin.myLocale().errorUnknownCommand);
+		    return false;
+		}
 	case 2:
 	    // Resetsign <player> - makes a warp sign for player
 	    if (split[0].equalsIgnoreCase("resetsign")) {
@@ -924,12 +1002,19 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 				    }
 
 				    if (removeList.size() > 0 && purgeFlag) {
-					// Check the level
-					if (plugin.getPlayers().getIslandLevel(removeList.get(0)) < Settings.abandonedIslandLevel) {
+					// Check if the player is online
+					if (plugin.getServer().getPlayer(removeList.get(0)) == null) {
+					    //plugin.getLogger().info("DEBUG: player is offline");
+					    // Check the level
+					    if (plugin.getPlayers().getIslandLevel(removeList.get(0)) < Settings.abandonedIslandLevel) {
+						sender.sendMessage(ChatColor.YELLOW + "[" + (total - removeList.size() + 1) + "/" + total + "] "
+							+ plugin.myLocale().purgeremovingName.replace("[name]", plugin.getPlayers().getName(removeList.get(0))));
+						plugin.deletePlayerIsland(removeList.get(0), true);
+					    } 
+					} else {
 					    sender.sendMessage(ChatColor.YELLOW + "[" + (total - removeList.size() + 1) + "/" + total + "] "
-						    + plugin.myLocale().purgeremovingName.replace("[name]", plugin.getPlayers().getName(removeList.get(0))));
-					    plugin.deletePlayerIsland(removeList.get(0), true);
-					} 
+							+ "Skipping online player...");
+					}
 					removeList.remove(0);
 				    }
 				    //sender.sendMessage("Now waiting...");
@@ -1002,6 +1087,14 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 			Location warpSpot = plugin.getPlayers().getIslandLocation(targetUUID).toVector().toLocation(ASkyBlock.getIslandWorld());
 			String failureMessage = ChatColor.RED + plugin.myLocale(player.getUniqueId()).adminTpManualWarp.replace("[location]", warpSpot.getBlockX() + " " + warpSpot.getBlockY() + " "
 				+ warpSpot.getBlockZ());
+			// Try the player's home first
+			Location home = plugin.getPlayers().getHomeLocation(targetUUID);
+			plugin.getGrid();
+			if (home.getWorld().equals(ASkyBlock.getIslandWorld()) && GridManager.isSafeLocation(home)) {
+			    player.teleport(home);
+			    return true;
+			}
+			// Other wise, go to a safe spot
 			new SafeSpotTeleport(plugin, player, warpSpot, failureMessage);
 			return true;
 		    }
@@ -1028,6 +1121,13 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 			Location warpSpot = plugin.getPlayers().getIslandLocation(targetUUID).toVector().toLocation(ASkyBlock.getNetherWorld());
 			String failureMessage = ChatColor.RED + plugin.myLocale(player.getUniqueId()).adminTpManualWarp.replace("[location]", warpSpot.getBlockX() + " " + warpSpot.getBlockY() + " "
 				+ warpSpot.getBlockZ());
+			// Try the player's home first
+			Location home = plugin.getPlayers().getHomeLocation(targetUUID);
+			plugin.getGrid();
+			if (home.getWorld().equals(ASkyBlock.getNetherWorld()) && GridManager.isSafeLocation(home)) {
+			    player.teleport(home);
+			    return true;
+			}
 			new SafeSpotTeleport(plugin, player, warpSpot, failureMessage);
 			return true;
 		    }
@@ -1070,6 +1170,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    } else {
 			if (adminSetPlayerIsland(sender, ((Player) sender).getLocation(), playerUUID)) {
 			    sender.sendMessage(ChatColor.GREEN + plugin.myLocale().registersettingIsland.replace("[name]", split[1]));
+			    plugin.getGrid().saveGrid();
 			} else {
 			    sender.sendMessage(ChatColor.RED + plugin.myLocale().registererrorBedrockNotFound);
 			}
@@ -1100,6 +1201,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 			    + plugin.getPlayers().getIslandLocation(playerUUID).getBlockX() + ","
 				    + plugin.getPlayers().getIslandLocation(playerUUID).getBlockZ()));
 		    plugin.deletePlayerIsland(playerUUID, false);
+		    plugin.getGrid().saveGrid();
 		    return true;
 		}
 	    } else if (split[0].equalsIgnoreCase("info")) {
@@ -1121,7 +1223,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    sender.sendMessage(ChatColor.RED + plugin.myLocale().errorUnknownPlayer);
 		    return true;
 		}
-		plugin.getPlayers().resetAllChallenges(playerUUID);
+		plugin.getPlayers().resetAllChallenges(playerUUID, true);
 		sender.sendMessage(ChatColor.YELLOW + plugin.myLocale().resetChallengessuccess.replace("[name]", split[1]));
 		return true;
 	    } else {
@@ -1187,6 +1289,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    island.setProtectionSize(newRange);
 		    sender.sendMessage(ChatColor.GREEN + plugin.myLocale().adminSetRangeSet.replace("[number]",String.valueOf(newRange)));
 		    showInfo(playerUUID, sender);
+		    plugin.getGrid().saveGrid();
 		    return true;
 		}
 	    }
@@ -1417,6 +1520,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		if (targetPlayer != null) {
 		    plugin.getGrid().homeTeleport(targetPlayer);
 		}
+		plugin.getGrid().saveGrid();
 		return true;
 	    } else {
 		sender.sendMessage(ChatColor.RED + plugin.myLocale().errorUnknownCommand);
@@ -1437,12 +1541,14 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 	// Reset the biome
 	plugin.getBiomes().setIslandBiome(island.getCenter(), Settings.defaultBiome);
 	new DeleteIslandChunk(plugin, island);
+	plugin.getGrid().saveGrid();
     }
 
     /**
      * Purges the unowned islands upon direction from sender
      * @param sender
      */
+
     private void purgeUnownedIslands(final CommandSender sender) {
 	purgeFlag = true;
 	final int total = unowned.size();
@@ -1453,15 +1559,17 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		    purgeFlag = false;
 		    sender.sendMessage(ChatColor.YELLOW + plugin.myLocale().purgefinished);
 		    this.cancel();
+		    plugin.getGrid().saveGrid();
 		}
 		if (unowned.size() > 0) {
 		    Iterator<Entry<String, Island>> it = unowned.entrySet().iterator();
 		    Entry<String,Island> entry = it.next();
-
-		    sender.sendMessage(ChatColor.YELLOW + "[" + (total - unowned.size() + 1) + "/" + total + "] " + plugin.myLocale().purgeRemovingAt.replace("[location]", 
-			    entry.getValue().getCenter().getWorld().getName() + " " + entry.getValue().getCenter().getBlockX()
-			    + "," + entry.getValue().getCenter().getBlockZ()));
-		    deleteIslands(entry.getValue(),sender);
+		    if (entry.getValue().getOwner() == null) {
+			sender.sendMessage(ChatColor.YELLOW + "[" + (total - unowned.size() + 1) + "/" + total + "] " + plugin.myLocale().purgeRemovingAt.replace("[location]", 
+				entry.getValue().getCenter().getWorld().getName() + " " + entry.getValue().getCenter().getBlockX()
+				+ "," + entry.getValue().getCenter().getBlockZ()));
+			deleteIslands(entry.getValue(),sender);
+		    }
 		    // Remove from the list
 		    it.remove();
 		}
@@ -1469,7 +1577,6 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 	    }
 	}.runTaskTimer(plugin, 0L, 20L);
     }
-
     /**
      * Counts unowned islands
      * @param sender
@@ -1557,6 +1664,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 			    purgeFlag = false;
 			}
 			this.cancel();
+			plugin.getGrid().saveGrid();
 		    }
 
 		}
@@ -1799,7 +1907,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		options.addAll(Arrays.asList("reload", "topten", "unregister",
 			"delete", "completechallenge", "resetchallenge",
 			"resetallchallenges", "purge", "info", "info", "info",
-			"clearreset", "setbiome", "topbreeders", "team"));
+			"clearreset", "clearresetall", "setbiome", "topbreeders", "team"));
 		break;
 	    case 2:
 		if (args[0].equalsIgnoreCase("lock")) {
@@ -1823,7 +1931,6 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		}
 		if (args[0].equalsIgnoreCase("info")) {
 		    options.add("challenges");
-
 		    options.addAll(Util.getOnlinePlayerList());
 		}
 		if (args[0].equalsIgnoreCase("clearreset")) {
@@ -1906,6 +2013,9 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.clearreset") || player.isOp()) {
 		    options.add("clearreset");
 		}
+		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "admin.clearresetall") || player.isOp()) {
+		    options.add("clearresetall");
+		}
 		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "admin.setspawn") || player.isOp()) {
 		    options.add("setspawn");
 		}
@@ -1931,7 +2041,7 @@ public class AdminCmd implements CommandExecutor, TabCompleter {
 		if (VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.signadmin") || player.isOp()) {
 		    options.add("resetsign");
 		}
-		if (Settings.teamChat && VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.teamchatspy") || player.isOp()) {
+		if (Settings.teamChat && VaultHelper.checkPerm(player, Settings.PERMPREFIX + "mod.spy") || player.isOp()) {
 		    options.add("spy");
 		}
 		break;

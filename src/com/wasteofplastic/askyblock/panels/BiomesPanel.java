@@ -14,6 +14,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -32,7 +33,6 @@ import com.wasteofplastic.askyblock.util.VaultHelper;
 public class BiomesPanel implements Listener {
     private ASkyBlock plugin;
     private HashMap<UUID, List<BiomeItem>> biomeItems = new HashMap<UUID, List<BiomeItem>>();
-
 
     /**
      * @param plugin
@@ -112,7 +112,7 @@ public class BiomesPanel implements Listener {
 	return null;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClick(InventoryClickEvent event) {
 	Player player = (Player) event.getWhoClicked(); // The player that
 	// clicked the item
@@ -179,7 +179,9 @@ public class BiomesPanel implements Listener {
     public boolean setIslandBiome(final Location islandLoc, final Biome biomeType) {
 	final Island island = plugin.getGrid().getIslandAt(islandLoc);
 	if (island != null) {
-	    island.getCenter().getBlock().setBiome(biomeType);
+	    // Update the settings so they can be checked later
+	    island.setBiome(biomeType);
+	    //island.getCenter().getBlock().setBiome(biomeType);
 	    // Get a snapshot of the island
 	    final World world = island.getCenter().getWorld();
 	    // If the biome is dry, then we need to remove the water, ice, snow, etc.
@@ -267,19 +269,80 @@ public class BiomesPanel implements Listener {
      */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onChunkLoad(ChunkLoadEvent e) {
-	// Only affects overworld
-	if (!e.getWorld().equals(ASkyBlock.getIslandWorld())) {
+	// Check if the grid is ready. If it is doing an import, it may not be.
+	if (plugin.getGrid() == null) {
 	    return;
 	}
-	Island island = plugin.getGrid().getIslandAt(e.getChunk().getX()*16, e.getChunk().getZ()*16);
-	if (island != null && !island.isSpawn()) {
-	    Biome biome = island.getCenter().getBlock().getBiome();
-	    for (int x = 0; x< 16; x++) {
-		for (int z = 0; z< 16; z++) {
-		    // Set biome
-		    e.getChunk().getBlock(x, 0, z).setBiome(biome);
+	if (e.getWorld() != ASkyBlock.getIslandWorld()) {
+	    //plugin.getLogger().info("DEBUG: not right world");
+	    return;
+	}
+	//Island island = plugin.getGrid().getIslandAt(e.getChunk().getX()*16, e.getChunk().getZ()*16);
+	//if (island != null && !island.isSpawn()) {
+	//    Biome biome = island.getCenter().getBlock().getBiome();
+	for (int x = 0; x< 16; x++) {
+	    for (int z = 0; z< 16; z++) {
+		Island island = plugin.getGrid().getIslandAt(e.getChunk().getX()*16 + x, e.getChunk().getZ()*16 + z);
+		if (island != null && !island.isSpawn()) {
+		    Biome biome = island.getBiome();
+		    Biome blockBiome = e.getChunk().getBlock(x, 0, z).getBiome();
+		    // If not set already, set it now
+		    if (!biome.equals(blockBiome)) {
+			//plugin.getLogger().info("DEBUG: setting biome");
+			// Set biome
+			e.getChunk().getBlock(x, 0, z).setBiome(biome);
+			// Check y down for snow etc.
+			switch (biome) {
+			case MESA:
+			case MESA_BRYCE:
+			case DESERT:
+			case JUNGLE:
+			case SAVANNA:
+			case SAVANNA_MOUNTAINS:
+			case SAVANNA_PLATEAU:
+			case SAVANNA_PLATEAU_MOUNTAINS:
+			case SWAMPLAND:
+			    boolean topBlockFound = false;
+			    for (int y = e.getWorld().getMaxHeight(); y >= Settings.sea_level; y--) {
+				Block b = e.getChunk().getBlock(x, y, z);
+				if (!b.getType().equals(Material.AIR)) {
+				    topBlockFound = true;
+				}
+				if (topBlockFound) {
+				    if (b.getType() == Material.ICE || b.getType() == Material.SNOW || b.getType() == Material.SNOW_BLOCK) {
+					b.setType(Material.AIR);
+				    } else {
+					// Finished with the removals once we hit non-offending blocks
+					break;
+				    }
+				}
+			    }
+			    break;
+			case HELL:
+			    topBlockFound = false;
+			    for (int y = e.getWorld().getMaxHeight(); y >= Settings.sea_level; y--) {
+				Block b = e.getChunk().getBlock(x, y, z);
+				if (!b.getType().equals(Material.AIR)) {
+				    topBlockFound = true;
+				}
+				if (topBlockFound) {
+				    if (b.getType() == Material.ICE || b.getType() == Material.SNOW || b.getType() == Material.SNOW_BLOCK
+					    || b.getType() == Material.WATER || b.getType() == Material.STATIONARY_WATER) {
+					b.setType(Material.AIR);
+				    } else {
+					// Finished with the removals once we hit non-offending blocks
+					break;
+				    }
+				}
+			    }
+			    break;
+
+			default:
+			}
+		    }
 		}
-	    }
+		
+	    }	    
 	}
     }
 

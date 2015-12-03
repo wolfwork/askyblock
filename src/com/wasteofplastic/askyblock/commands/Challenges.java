@@ -145,7 +145,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 		sender.sendMessage(ChatColor.GOLD + plugin.myLocale(player.getUniqueId()).challengesname + ": " + ChatColor.WHITE + challenge);
 		sender.sendMessage(ChatColor.WHITE + plugin.myLocale(player.getUniqueId()).challengeslevel + ": " + ChatColor.GOLD
 			+ getChallengeConfig().getString("challenges.challengeList." + challenge + ".level", ""));
-		sender.sendMessage(ChatColor.GOLD + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description", ""));
+		sender.sendMessage(ChatColor.GOLD + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description", "").replace("[label]", Settings.ISLANDCOMMAND));
 		final String type = getChallengeConfig().getString("challenges.challengeList." + challenge + ".type", "").toLowerCase();
 		if (type.equals("inventory")) {
 		    if (getChallengeConfig().getBoolean("challenges.challengeList." + cmd[0].toLowerCase() + ".takeItems")) {
@@ -301,8 +301,10 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    // First time
 	    player.sendMessage(ChatColor.GREEN + plugin.myLocale(player.getUniqueId()).challengesyouHaveCompleted.replace("[challenge]", challengeName));
 	    if (Settings.broadcastMessages) {
-		plugin.getServer().broadcastMessage(
-			ChatColor.GOLD + plugin.myLocale(player.getUniqueId()).challengesnameHasCompleted.replace("[name]", player.getName()).replace("[challenge]", challengeName));
+		for (Player p : plugin.getServer().getOnlinePlayers()) {
+		    p.sendMessage(
+			    ChatColor.GOLD + plugin.myLocale(p.getUniqueId()).challengesnameHasCompleted.replace("[name]", player.getDisplayName()).replace("[challenge]", challengeName));
+		}
 	    }
 	    plugin.getMessages().tellOfflineTeam(player.getUniqueId(),
 		    ChatColor.GOLD + plugin.myLocale(player.getUniqueId()).challengesnameHasCompleted.replace("[name]", player.getName()).replace("[challenge]", challengeName));
@@ -373,7 +375,25 @@ public class Challenges implements CommandExecutor, TabCompleter {
     }
 
     private void runCommands(Player player, List<String> commands) {
+	// Ignore commands with this perm
+	if (player.hasPermission(Settings.PERMPREFIX + "command.challengeexempt")) {
+	    return;
+	}
 	for (String cmd : commands) {
+	    if (cmd.startsWith("[SELF]")) {
+		plugin.getLogger().info("Running command '" + cmd + "' as " + player.getName());
+		cmd = cmd.substring(6,cmd.length()).replace("[player]", player.getName()).trim();
+		try {
+		    player.performCommand(cmd);
+		} catch (Exception e) {
+		    plugin.getLogger().severe("Problem executing island command executed by player - skipping!");
+		    plugin.getLogger().severe("Command was : " + cmd);
+		    plugin.getLogger().severe("Error was: " + e.getMessage());
+		    e.printStackTrace();
+		}
+
+		continue;
+	    }
 	    // Substitute in any references to player
 	    try {
 		if (!plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), cmd.replace("[player]", player.getName()))) {
@@ -676,7 +696,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    // Check if the player has the required items
 	    if (!hasRequired(player, challenge, "inventory")) {
 		player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).challengeserrorNotEnoughItems);
-		player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description"));
+		player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description").replace("[label]", Settings.ISLANDCOMMAND));
 		return false;
 	    }
 	    return true;
@@ -690,8 +710,14 @@ public class Challenges implements CommandExecutor, TabCompleter {
 		return false;
 	    }
 	    if (!hasRequired(player, challenge, "island")) {
-		player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).challengeserrorNotCloseEnough);
-		player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description"));
+		int searchRadius = getChallengeConfig().getInt("challenges.challengeList." + challenge + ".searchRadius",10);
+		if (searchRadius < 10) {
+		    searchRadius = 10;
+		} else if (searchRadius > 50) {
+		    searchRadius = 50;
+		}
+		player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).challengeserrorNotCloseEnough.replace("[number]", String.valueOf(searchRadius)));
+		player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description").replace("[label]", Settings.ISLANDCOMMAND));
 		return false;
 	    }
 	    // plugin.getLogger().info("DEBUG: 7");
@@ -756,7 +782,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    if (moneyReq > 0D) {
 		if (!VaultHelper.econ.has(player, Settings.worldName, moneyReq)) {
 		    player.sendMessage(ChatColor.RED + plugin.myLocale(player.getUniqueId()).challengeserrorNotEnoughItems);
-		    player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description"));
+		    player.sendMessage(ChatColor.RED + getChallengeConfig().getString("challenges.challengeList." + challenge + ".description").replace("[label]", Settings.ISLANDCOMMAND));
 		    return false;
 		}
 	    }
@@ -814,6 +840,10 @@ public class Challenges implements CommandExecutor, TabCompleter {
 			    for (Entry<Integer, ? extends ItemStack> en : player.getInventory().all(reqItem).entrySet()) {
 				// Get the item
 				ItemStack i = en.getValue();
+				// If the item is enchanted, skip - it doesn't count
+				if (i.hasItemMeta()) {
+				    continue;
+				}
 				// Map needs special handling because the
 				// durability increments every time a new one is
 				// made by the player
@@ -821,8 +851,8 @@ public class Challenges implements CommandExecutor, TabCompleter {
 				// in the same way, they need adding too...
 				if (i.getDurability() == 0 || (reqItem == Material.MAP && i.getType() == Material.MAP)) {
 				    // Clear any naming, or lore etc.
-				    i.setItemMeta(null);
-				    player.getInventory().setItem(en.getKey(), i);
+				    //i.setItemMeta(null);
+				    //player.getInventory().setItem(en.getKey(), i);
 				    // #1 item stack qty + amount is less than
 				    // required items - take all i
 				    // #2 item stack qty + amount = required
@@ -977,10 +1007,13 @@ public class Challenges implements CommandExecutor, TabCompleter {
 			    for (Entry<Integer, ? extends ItemStack> en : player.getInventory().all(reqItem).entrySet()) {
 				// Get the item
 				ItemStack i = en.getValue();
+				if (i.hasItemMeta()) {
+				    continue;
+				}
 				if (i.getDurability() == reqDurability) {
 				    // Clear any naming, or lore etc.
-				    i.setItemMeta(null);
-				    player.getInventory().setItem(en.getKey(), i);
+				    //i.setItemMeta(null);
+				    // player.getInventory().setItem(en.getKey(), i);
 				    // #1 item stack qty + amount is less than
 				    // required items - take all i
 				    // #2 item stack qty + amount = required
@@ -1244,9 +1277,16 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    final int px = l.getBlockX();
 	    final int py = l.getBlockY();
 	    final int pz = l.getBlockZ();
-	    for (int x = -10; x <= 10; x++) {
-		for (int y = -10; y <= 10; y++) {
-		    for (int z = -10; z <= 10; z++) {
+	    // Get search radius - min is 10, max is 50
+	    int searchRadius = getChallengeConfig().getInt("challenges.challengeList." + challenge + ".searchRadius",10);
+	    if (searchRadius < 10) {
+		searchRadius = 10;
+	    } else if (searchRadius > 50) {
+		searchRadius = 50;
+	    }
+	    for (int x = -searchRadius; x <= searchRadius; x++) {
+		for (int y = -searchRadius; y <= searchRadius; y++) {
+		    for (int z = -searchRadius; z <= searchRadius; z++) {
 			final Material b = new Location(l.getWorld(), px + x, py + y, pz + z).getBlock().getType();
 			if (neededItem.containsKey(b)) {
 			    if (neededItem.get(b) == 1) {
@@ -1271,7 +1311,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    } else {
 		// plugin.getLogger().info("DEBUG: Items are there");
 		// Check for needed entities
-		for (Entity entity : player.getNearbyEntities(10, 10, 10)) {
+		for (Entity entity : player.getNearbyEntities(searchRadius, searchRadius, searchRadius)) {
 		    // plugin.getLogger().info("DEBUG: Entity found:" +
 		    // entity.getType().toString());
 		    if (neededEntities.containsKey(entity.getType())) {
@@ -1495,7 +1535,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 		plugin.getLogger().warning("Format should be 'icon: MaterialType:Damage' where Damage is optional");
 	    }
 	}
-	if (icon == null || icon.equals(Material.AIR)) {
+	if (icon == null || icon.getType() == Material.AIR) {
 	    icon = new ItemStack(Material.PAPER);
 	}
 	String description = ChatColor.GREEN
@@ -1589,7 +1629,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 
 	final String type = getChallengeConfig().getString("challenges.challengeList." + challenge + ".type", "").toLowerCase();
 	if (!complete || (complete && repeatable)) {
-	    result.addAll(Util.chop(ChatColor.GOLD, getChallengeConfig().getString("challenges.challengeList." + challenge + ".description", ""), length));
+	    result.addAll(Util.chop(ChatColor.GOLD, getChallengeConfig().getString("challenges.challengeList." + challenge + ".description", "").replace("[label]", Settings.ISLANDCOMMAND), length));
 	    if (type.equals("inventory")) {
 		if (getChallengeConfig().getBoolean("challenges.challengeList." + challenge.toLowerCase() + ".takeItems")) {
 		    result.addAll(Util.chop(ChatColor.RED, plugin.myLocale(player.getUniqueId()).challengesitemTakeWarning, length));
@@ -1610,7 +1650,7 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	    moneyReward = getChallengeConfig().getDouble("challenges.challengeList." + challenge.toLowerCase() + ".moneyReward", 0);
 	    rewardText = ChatColor.translateAlternateColorCodes('&',
 		    getChallengeConfig().getString("challenges.challengeList." + challenge.toLowerCase() + ".rewardText", "Goodies!"));
-	    expReward = getChallengeConfig().getInt("challenges.challengeList." + challenge + ".xpReward", 0);
+	    expReward = getChallengeConfig().getInt("challenges.challengeList." + challenge + ".expReward", 0);
 	    result.addAll(Util.chop(ChatColor.GOLD, plugin.myLocale(player.getUniqueId()).challengesfirstTimeRewards, length));
 	} else {
 	    // Repeat challenge
@@ -1758,5 +1798,14 @@ public class Challenges implements CommandExecutor, TabCompleter {
 	}
 
 	return Util.tabLimit(options, args.length != 0 ? args[args.length - 1] : "");
+    }
+
+    /**
+     * Check if challenge can be reset according to challenges.yml file
+     * @param challenge
+     * @return true if this challenge can be reset, false if not
+     */
+    public boolean resetable(String challenge) {
+	return getChallengeConfig().getBoolean("challenges.challengeList." + challenge + ".resetallowed", true);
     }
 }

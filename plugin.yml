@@ -24,9 +24,13 @@ commands:
             /challenge
 permissions:    
   askyblock.*:
+    default: false
     children:
       askyblock.island.*:
         children:
+          askyblock.island.go:
+            description: Allow teleporting to player island
+            default: true
           askyblock.island.create:
             description: Let the player use the /island command
             default: true
@@ -89,6 +93,22 @@ permissions:
           askyblock.team.chat:
             description: Allow player to use team chat
             default: true
+      askyblock.command.*:
+        description: Event commands will not be run for players with this perm
+        default: false
+        children:
+          askyblock.command.resetexempt:
+            description: Player is exempt from commands run when island resets
+            default: false
+          askyblock.command.leaveexempt:
+            description: Player is exempt from commands run when they leave or are kicked. Note will not help if player is offline.
+            default: false
+          askyblock.command.newexempt:
+            description: Player is exempt from commands run when starting an island
+            default: false
+          askyblock.command.challengeexempt:
+            description: Player is exempt from commands run when a challenge is completed
+            default: false
       askyblock.coop:
         description: Allows player to use the coop command
         default: false    
@@ -96,6 +116,104 @@ permissions:
         children:
           askyblock.craft.enderchest:
             description: Allow crafting and use of enderchests in askyblock
+            default: false
+          askyblock.craft.dirt:
+            description: Allows tilling of coarse dirt into dirt
+            default: false
+      askyblock.excludetopten:
+        description: Excludes player from top ten
+        default: false
+      askyblock.nohunger:
+        description: Excludes player from hunger if on island
+        default: false   
+      askyblock.settings.*:
+        children:
+          askyblock.settings.allowAnvilUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowArmorStandUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBeaconAccess:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBedUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBreakBlocks:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBreeding:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBrewing:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowBucketUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowChestAccess:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowCrafting:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowCropTrample:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowDoorUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowEnchanting:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowEnderPearls:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowFurnaceUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowGateUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowHorseInvAccess:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowHorseRiding:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowHurtMobs:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowLeashUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowLeverButtonUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowMusic:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowPlaceBlocks:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowPortalUse:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowPressurePlate:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowPvP:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowNetherPvP:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowRedStone:
+            description: Allow player to change this island guard setting
+            default: false
+          askyblock.settings.allowShearing:
+            description: Allow player to change this island guard setting
             default: false
       askyblock.mod.*:
         children:
@@ -141,11 +259,17 @@ permissions:
           askyblock.mod.signadmin:
             description: Enables warp sign admin commands
             default: op
-          askyblock.mod.teamchatspy:
+          askyblock.mod.spy:
             description: Spy on team chats
+            default: false
+          askyblock.mod.removesign:
+            description: Gives ability to remove warp signs
             default: false
       askyblock.admin.*:
         children:
+          askyblock.admin.clearresetall:
+            description: Allow clearing of island reset limit of all players
+            default: op
           askyblock.admin.reload:
             description: Reload the config.yml
             default: op

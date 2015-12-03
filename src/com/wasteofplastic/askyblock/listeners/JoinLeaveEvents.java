@@ -34,9 +34,11 @@ import com.wasteofplastic.askyblock.ASkyBlock;
 import com.wasteofplastic.askyblock.CoopPlay;
 import com.wasteofplastic.askyblock.Island;
 import com.wasteofplastic.askyblock.LevelCalc;
+import com.wasteofplastic.askyblock.LevelCalcByChunk;
 import com.wasteofplastic.askyblock.PlayerCache;
 import com.wasteofplastic.askyblock.Scoreboards;
 import com.wasteofplastic.askyblock.Settings;
+import com.wasteofplastic.askyblock.TopTen;
 import com.wasteofplastic.askyblock.util.VaultHelper;
 
 public class JoinLeaveEvents implements Listener {
@@ -145,7 +147,8 @@ public class JoinLeaveEvents implements Listener {
 		    // We have a mismatch - correct in favor of the player info
 		    //plugin.getLogger().info("DEBUG: getIslandLoc is null but there is a player listing");
 		    plugin.getLogger().warning(player.getName() + " login: mismatch - player.yml and islands.yml are out of sync. Fixing...");
-		    plugin.getGrid().deleteIsland(islandByOwner.getCenter());
+		    // Cannot delete by location
+		    plugin.getGrid().deleteIslandOwner(playerUUID);
 		    plugin.getGrid().addIsland(loc.getBlockX(), loc.getBlockZ(), leader);
 		}
 	    } else {
@@ -172,19 +175,21 @@ public class JoinLeaveEvents implements Listener {
 	}
 	// Run the level command if it's free to do so
 	if (Settings.loginLevel) {
-	    if (!plugin.isCalculatingLevel()) {
-		// This flag is true if the command can be used
-		plugin.setCalculatingLevel(true);
-		LevelCalc levelCalc = new LevelCalc(plugin, playerUUID, player, true);
-		levelCalc.runTaskTimer(plugin, 0L, 10L);
+	    if (Settings.fastLevelCalc) {
+		new LevelCalcByChunk(plugin, playerUUID, player, true);
+	    } else {
+		if (!plugin.isCalculatingLevel()) {
+		    // This flag is true if the command can be used
+		    plugin.setCalculatingLevel(true);
+		    LevelCalc levelCalc = new LevelCalc(plugin, playerUUID, player, true);
+		    levelCalc.runTaskTimer(plugin, 0L, 10L);
+		}
 	    }
 	}
 
 	// Set the player's name (it may have changed), but only if it isn't empty
 	if (!player.getName().isEmpty()) {
 	    players.setPlayerName(playerUUID, player.getName());
-	    // Add to tinyDB
-	    plugin.getTinyDB().savePlayerName(player.getName(), playerUUID);
 	} else {
 	    plugin.getLogger().warning("Player that just logged in has no name! " + playerUUID.toString());
 	}
@@ -210,10 +215,18 @@ public class JoinLeaveEvents implements Listener {
 	}
 	// Set the player's level
 	plugin.getChatListener().setPlayerLevel(playerUUID, plugin.getPlayers().getIslandLevel(player.getUniqueId()));
+	// Remove from TopTen if the player has the permission
+	if (player.hasPermission(Settings.PERMPREFIX + "excludetopten")) {
+	    TopTen.topTenRemoveEntry(playerUUID);
+	}
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerQuit(final PlayerQuitEvent event) {
+	// Remove from TopTen if the player has the permission
+	if (event.getPlayer().hasPermission(Settings.PERMPREFIX + "excludetopten")) {
+	    TopTen.topTenRemoveEntry(event.getPlayer().getUniqueId());
+	}
 	// Remove from coop list
 	CoopPlay.getInstance().clearMyCoops(event.getPlayer());
 	CoopPlay.getInstance().clearMyInvitedCoops(event.getPlayer());
